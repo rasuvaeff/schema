@@ -99,6 +99,17 @@ final class ArraySchemaTest
         ];
     }
 
+    public function zeroCountAndEqualBoundsAreLegal(): void
+    {
+        $zero = Schema::arrayOf(Schema::int())->minCount(0)->maxCount(0);
+        $equal = Schema::arrayOf(Schema::int())->minCount(3)->maxCount(3);
+
+        Assert::true($zero->parse([])->ok);
+        Assert::true($equal->parse([1, 2, 3])->ok);
+        Assert::false($equal->parse([1, 2])->ok);
+        Assert::false($equal->parse([1, 2, 3, 4])->ok);
+    }
+
     public function generatedValuesAlwaysParse(): void
     {
         $schema = Schema::arrayOf(Schema::int()->min(-2)->max(2))->maxCount(4);

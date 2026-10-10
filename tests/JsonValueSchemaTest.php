@@ -59,6 +59,10 @@ final class JsonValueSchemaTest
         yield 'resource' => [\fopen('php://memory', 'rb')];
 
         yield 'mixed keys' => [['a' => 1, 0 => 2]];
+
+        yield 'nested object' => [['a' => new \stdClass()]];
+
+        yield 'nested mixed keys' => [['a' => ['b' => 1, 0 => 2]]];
     }
 
     public function generatedValuesAlwaysParse(): void

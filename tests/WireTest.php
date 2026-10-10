@@ -26,6 +26,10 @@ final class WireTest
 
         Assert::same(Wire::value($list, [Role::Admin, Role::Viewer]), ['admin', 'viewer']);
 
+        $map = Schema::mapOf(Schema::enum(Role::class));
+
+        Assert::same(Wire::value($map, ['first' => Role::Editor]), ['first' => 'editor']);
+
         $object = Schema::object([
             'role' => Schema::enum(Role::class),
             'count' => Schema::int(),
@@ -35,6 +39,12 @@ final class WireTest
             Wire::value($object, ['role' => Role::Admin, 'count' => 3]),
             ['role' => 'admin', 'count' => 3],
         );
+    }
+
+    public function aNonArrayAgainstAContainerSchemaPassesThrough(): void
+    {
+        Assert::same(Wire::value(Schema::arrayOf(Schema::int()), 'not an array'), 'not an array');
+        Assert::same(Wire::value(Schema::mapOf(Schema::int()), 42), 42);
     }
 
     public function nullablePassesNullThrough(): void

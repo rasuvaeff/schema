@@ -85,6 +85,15 @@ final class IntSchemaTest
         }
     }
 
+    public function equalBoundsAllowExactlyOneValue(): void
+    {
+        $schema = Schema::int()->min(5)->max(5);
+
+        Assert::true($schema->parse(5)->ok);
+        Assert::false($schema->parse(4)->ok);
+        Assert::false($schema->parse(6)->ok);
+    }
+
     public function generatorRespectsAHighMinWithoutAMax(): void
     {
         $schema = Schema::int()->min(5000);

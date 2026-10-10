@@ -39,7 +39,7 @@ final class StringSchema extends SchemaType
             throw new \InvalidArgumentException('Pattern must not be empty');
         }
 
-        if ($pattern !== null && $format !== null) {
+        if ($pattern !== null && $format instanceof \Rasuvaeff\Schema\Format) {
             throw new \InvalidArgumentException('Pattern and format are mutually exclusive — combine lengths with one of them');
         }
     }
@@ -148,7 +148,7 @@ final class StringSchema extends SchemaType
             ]);
         }
 
-        if ($this->format !== null && !$this->formatAccepts($input)) {
+        if ($this->format instanceof \Rasuvaeff\Schema\Format && !$this->formatAccepts($input)) {
             return ParseResult::failed([
                 new ParseError([], \sprintf('String is not a valid %s', $this->format->value)),
             ]);
@@ -170,7 +170,7 @@ final class StringSchema extends SchemaType
 
     private function formatAccepts(string $input): bool
     {
-        \assert($this->format !== null);
+        \assert($this->format instanceof \Rasuvaeff\Schema\Format);
 
         return match ($this->format) {
             Format::Email => \filter_var($input, \FILTER_VALIDATE_EMAIL) !== false,
@@ -199,7 +199,7 @@ final class StringSchema extends SchemaType
     #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
-        if ($this->format !== null) {
+        if ($this->format instanceof \Rasuvaeff\Schema\Format) {
             $arbitrary = match ($this->format) {
                 Format::Email => Gen::email(),
                 Format::Uuid => Gen::uuid(),
@@ -269,7 +269,7 @@ final class StringSchema extends SchemaType
             $schema['pattern'] = $this->pattern;
         }
 
-        if ($this->format !== null) {
+        if ($this->format instanceof \Rasuvaeff\Schema\Format) {
             $schema['format'] = $this->format->value;
         }
 

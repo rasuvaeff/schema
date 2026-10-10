@@ -29,7 +29,6 @@ interface SchemaInterface
      * with a structured path. Messages never embed input values — only
      * kinds and sizes — because payloads may carry secrets.
      *
-     * @param mixed $input
      *
      * @return ParseResult<TValue>
      */
@@ -39,10 +38,8 @@ interface SchemaInterface
      * Validate `$input` and return the parsed value, or throw a single
      * exception carrying every error.
      *
-     * @param mixed $input
      *
      * @return TValue
-     *
      * @throws SchemaException when `$input` does not match the schema.
      */
     public function parseOrThrow(mixed $input): mixed;

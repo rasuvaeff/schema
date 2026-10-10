@@ -39,7 +39,7 @@ final class Wire
         }
 
         if ($schema instanceof TransformSchema) {
-            if ($schema->wire !== null) {
+            if ($schema->wire instanceof \Closure) {
                 $wire = $schema->wire;
 
                 return $wire($value);

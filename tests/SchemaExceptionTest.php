@@ -29,6 +29,21 @@ final class SchemaExceptionTest
         Assert::same($exception->errors, $result->errors);
     }
 
+    public function messageRendersOneErrorPerLine(): void
+    {
+        $result = Schema::object([
+            'a' => Schema::int(),
+            'b' => Schema::int(),
+        ])->parse(['a' => 'no', 'b' => 'no']);
+
+        $exception = new SchemaException($result->errors);
+
+        Assert::same(
+            $exception->getMessage(),
+            "$.a Expected int, got string\n$.b Expected int, got string",
+        );
+    }
+
     #[ExpectException(SchemaException::class)]
     public function parseOrThrowThrowsWithErrors(): void
     {

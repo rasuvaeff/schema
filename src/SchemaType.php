@@ -27,18 +27,14 @@ use Rasuvaeff\Schema\Type\ObjectProperty;
 abstract class SchemaType implements SchemaInterface
 {
     /**
-     * @param mixed $input
-     *
      * @return ParseResult<TValue>
      */
     #[\Override]
     abstract public function parse(mixed $input): ParseResult;
 
     /**
-     * @param mixed $input
      *
      * @return TValue
-     *
      * @throws SchemaException when `$input` does not match the schema.
      */
     #[\Override]

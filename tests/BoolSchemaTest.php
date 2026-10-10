@@ -17,8 +17,8 @@ final class BoolSchemaTest
 {
     public function acceptsBothBooleans(): void
     {
-        Assert::true(Schema::bool()->parse(true)->ok);
-        Assert::same(Schema::bool()->parseOrThrow(false), false);
+        Assert::true(Schema::bool()->parse(input: true)->ok);
+        Assert::same(Schema::bool()->parseOrThrow(input: false), expected: false);
     }
 
     public function rejectsAnIntegerEvenThoughPhpIsLenient(): void

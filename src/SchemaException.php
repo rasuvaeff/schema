@@ -19,13 +19,13 @@ final class SchemaException extends \RuntimeException
     public function __construct(
         public readonly array $errors,
     ) {
-        parent::__construct(self::render($errors));
+        parent::__construct($this->render($errors));
     }
 
     /**
      * @param list<ParseError> $errors never empty by construction
      */
-    private static function render(array $errors): string
+    private function render(array $errors): string
     {
         $lines = [];
 

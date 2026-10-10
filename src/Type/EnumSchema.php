@@ -100,7 +100,7 @@ final class EnumSchema extends SchemaType
         $values = [];
 
         foreach ($this->enum::cases() as $case) {
-            $values[] = \var_export($case->value, true);
+            $values[] = \var_export($case->value, return: true);
         }
 
         return \implode(', ', $values);

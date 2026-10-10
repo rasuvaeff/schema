@@ -73,7 +73,7 @@ final class LazySchema extends SchemaType
      */
     public function resolve(): SchemaInterface
     {
-        if ($this->resolved === null) {
+        if (!$this->resolved instanceof \Rasuvaeff\Schema\SchemaInterface) {
             $factory = $this->factory;
             $this->resolved = $factory();
         }

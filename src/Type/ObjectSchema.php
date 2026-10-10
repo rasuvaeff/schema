@@ -137,7 +137,7 @@ final class ObjectSchema extends SchemaType
         $generators = [];
 
         foreach ($this->properties as $name => $property) {
-            $entry = self::entry($name);
+            $entry = $this->entry($name);
 
             if ($property->optional && !$property->hasDefault) {
                 $generators[] = Gen::frequency([
@@ -175,7 +175,7 @@ final class ObjectSchema extends SchemaType
     /**
      * @return Closure(mixed): array<string, mixed>
      */
-    private static function entry(string $name): Closure
+    private function entry(string $name): Closure
     {
         return static fn(mixed $value): array => [$name => $value];
     }

@@ -158,7 +158,7 @@ final class ObjectSchemaTest
             $result = $schema->parse($schema->arbitrary()->generate($random)->value);
 
             Assert::true($result->ok, \sprintf('value #%d failed to parse', $i));
-            Assert::same(\array_key_exists('role', $result->value), true);
+            Assert::same(\array_key_exists('role', $result->value), expected: true);
         }
     }
 }

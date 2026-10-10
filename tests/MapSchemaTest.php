@@ -97,6 +97,17 @@ final class MapSchemaTest
         ];
     }
 
+    public function zeroCountAndEqualBoundsAreLegal(): void
+    {
+        $zero = Schema::mapOf(Schema::int())->minCount(0)->maxCount(0);
+        $equal = Schema::mapOf(Schema::int())->minCount(2)->maxCount(2);
+
+        Assert::true($zero->parse([])->ok);
+        Assert::true($equal->parse(['a' => 1, 'b' => 2])->ok);
+        Assert::false($equal->parse(['a' => 1])->ok);
+        Assert::false($equal->parse(['a' => 1, 'b' => 2, 'c' => 3])->ok);
+    }
+
     public function generatedValuesAlwaysParse(): void
     {
         $schema = Schema::mapOf(Schema::int()->min(-2)->max(2))->maxCount(4);

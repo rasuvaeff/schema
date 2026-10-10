@@ -31,7 +31,7 @@ final readonly class ObjectProperty implements SchemaInterface
      * @param SchemaInterface<TValue> $schema
      */
     public function __construct(
-        public readonly SchemaInterface $schema,
+        public SchemaInterface $schema,
         public bool $optional = false,
         public bool $hasDefault = false,
         public mixed $default = null,
@@ -56,7 +56,8 @@ final readonly class ObjectProperty implements SchemaInterface
      * (normalized) value: an enum default may be given as its backed
      * value but is kept as the instance. Implies optional.
      *
-     * @param mixed $value
+     *
+     * @psalm-param TValue $value
      */
     public function default(mixed $value): self
     {

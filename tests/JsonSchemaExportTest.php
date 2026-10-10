@@ -203,7 +203,7 @@ final class JsonSchemaExportTest
         try {
             $export->assertFullyRepresentable();
 
-            Assert::true(false, 'assertFullyRepresentable must throw');
+            Assert::true(actual: false, message: 'assertFullyRepresentable must throw');
         } catch (NonRepresentableException $exception) {
             Assert::string($exception->getMessage())->contains('refine @ $.a');
             Assert::string($exception->getMessage())->contains('transform @ $.b');

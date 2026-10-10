@@ -17,11 +17,11 @@ use Rasuvaeff\Schema\Type\ObjectSchema;
  */
 final class SchemaTrees
 {
-    private const LEAVES = ['string', 'int', 'bool', 'literal', 'enum', 'json', 'refine'];
+    private const array LEAVES = ['string', 'int', 'bool', 'literal', 'enum', 'json', 'refine'];
 
-    private const TRANSFORM_LEAVES = ['transform'];
+    private const array TRANSFORM_LEAVES = ['transform'];
 
-    private const NODES = ['array', 'map', 'object', 'nullable', 'union'];
+    private const array NODES = ['array', 'map', 'object', 'nullable', 'union'];
 
     /**
      * @return ArbitraryInterface<SchemaInterface<mixed>>

@@ -12,7 +12,7 @@ namespace Rasuvaeff\Schema;
  *
  * @api
  */
-final readonly class NonRepresentable
+final readonly class NonRepresentable implements \Stringable
 {
     /**
      * @param list<int|string> $segments empty at the export root
@@ -41,6 +41,7 @@ final readonly class NonRepresentable
     /**
      * `transform @ $.tags[0]` — the construct and where it lived.
      */
+    #[\Override]
     public function __toString(): string
     {
         return $this->construct . ' @ ' . $this->toPath();

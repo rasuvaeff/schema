@@ -35,7 +35,7 @@ final class LiteralSchemaTest
     {
         Assert::false(Schema::literal('1')->parse(1)->ok);
         Assert::true(Schema::literal(0)->parse(0)->ok);
-        Assert::false(Schema::literal(null)->parse(false)->ok);
+        Assert::false(Schema::literal(null)->parse(input: false)->ok);
     }
 
     public function generatedValueIsAlwaysTheLiteral(): void
