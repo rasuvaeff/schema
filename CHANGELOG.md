@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Badges (stable version, downloads, build, static analysis, Psalm level,
   PHP, license) and a package description in the sibling packages' style.
 
+## 0.3.0 — 2026-10-10
+
+- Instance `->nullable()` on every schema — the chained twin of the
+  `Schema::nullable(...)` facade factory (`Schema::int()->min(1)->nullable()`),
+  symmetric with the other combinators. Found by the keppio message wave: the
+  facade-only form tripped a consumer mid-chain on day one. Both forms stay
+  valid; no behavior change.
+
 ## 0.2.0 — 2026-10-10
 
 - Public `toWire()` port on `SchemaInterface`: the PHP→wire projection is

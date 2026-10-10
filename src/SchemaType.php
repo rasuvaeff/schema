@@ -9,6 +9,7 @@ use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectProperty;
 
 /**
@@ -89,6 +90,20 @@ abstract class SchemaType implements SchemaInterface
         ?array $jsonSchema = null,
     ): TransformSchema {
         return new TransformSchema($this, $transform, $from, $wire, $jsonSchema);
+    }
+
+    /**
+     * The inner schema or null — the instance form of
+     * {@see Schema::nullable()}, symmetric with the other combinators, so
+     * it reads naturally at the end of a chain:
+     * `Schema::int()->min(1)->nullable()`. Nullable is about the value; an
+     * optional key is about the property — different levels, both exist.
+     *
+     * @return NullableSchema<TValue>
+     */
+    public function nullable(): NullableSchema
+    {
+        return new NullableSchema($this);
     }
 
     /**
