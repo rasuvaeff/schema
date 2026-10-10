@@ -147,6 +147,33 @@ Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 
 а ошибки уезжают в логи и Sentry. Колбэк `transform`, бросивший исключение,
 отдаёт только имя класса.
 
+## API
+
+Фасад `Schema` — единственная точка входа; каждая фабрика возвращает
+подкласс `SchemaType`, все они `@api`:
+
+| Тип | Фабрика | Примечания |
+|---|---|---|
+| `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max` |
+| `Type\BoolSchema` | `Schema::bool()` | |
+| `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
+| `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; инстанс или backed-значение на входе, инстанс на выходе |
+| `Type\JsonValueSchema` | `Schema::json()` | домен `json_decode` |
+| `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
+| `Type\MapSchema` | `Schema::mapOf($v)` | строковые ключи; `minCount`/`maxCount` |
+| `Type\ObjectSchema` | `Schema::object([...])` | свойства `optional`/`default`, `additionalProperties()` |
+| `Type\UnionSchema` | `Schema::union([...])` | первый успех побеждает |
+| `Type\NullableSchema` | `Schema::nullable($s)` | null на уровне значения |
+| `Type\LazySchema` | `Schema::lazy($fn)` | рекурсия, мемоизация |
+| `Combinator\TransformSchema` | `->transform($fn)` | генерация в target-пространстве, shrink в исходном |
+| `Combinator\RefineSchema` | `->refine($fn, $msg)` | пост-условие; фильтрованная генерация |
+| `Type\ObjectProperty` | `->optional()` / `->default($v)` | property-модификаторы; default валидируется при конструировании |
+
+Результаты: `ParseResult` / `ParseError` (сегменты → `$.tags[2]` и RFC 6901),
+`SchemaException`, `JsonSchemaExport` + `NonRepresentable` /
+`NonRepresentableException` (строгий экспорт).
+
 ## Примеры
 
 - [examples/queue-payload.php](examples/queue-payload.php) — схема объекта

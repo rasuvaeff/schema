@@ -147,6 +147,33 @@ Error messages never embed input values — kinds and sizes only
 travel to logs and Sentry. A `transform` callback that throws contributes
 its class name only.
 
+## API
+
+The `Schema` facade is the single entry point; every factory returns a
+`SchemaType` subclass, all of them `@api`:
+
+| Type | Factory | Notes |
+|---|---|---|
+| `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max` |
+| `Type\BoolSchema` | `Schema::bool()` | |
+| `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |
+| `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; instance or backed value in, instance out |
+| `Type\JsonValueSchema` | `Schema::json()` | the `json_decode` domain |
+| `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
+| `Type\MapSchema` | `Schema::mapOf($v)` | string keys; `minCount`/`maxCount` |
+| `Type\ObjectSchema` | `Schema::object([...])` | `optional`/`default` properties, `additionalProperties()` |
+| `Type\UnionSchema` | `Schema::union([...])` | first success wins |
+| `Type\NullableSchema` | `Schema::nullable($s)` | value-level null |
+| `Type\LazySchema` | `Schema::lazy($fn)` | recursion, memoized |
+| `Combinator\TransformSchema` | `->transform($fn)` | target-space generation, source-space shrinking |
+| `Combinator\RefineSchema` | `->refine($fn, $msg)` | post-condition; filtered generation |
+| `Type\ObjectProperty` | `->optional()` / `->default($v)` | property modifiers; default validated on construction |
+
+Results: `ParseResult` / `ParseError` (segments → `$.tags[2]` and RFC 6901),
+`SchemaException`, `JsonSchemaExport` + `NonRepresentable` /
+`NonRepresentableException` (strict export).
+
 ## Examples
 
 - [examples/queue-payload.php](examples/queue-payload.php) — object schema

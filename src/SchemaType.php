@@ -23,6 +23,8 @@ use Rasuvaeff\Schema\Type\ObjectProperty;
  * @template TValue
  *
  * @implements SchemaInterface<TValue>
+ *
+ * @api
  */
 abstract class SchemaType implements SchemaInterface
 {

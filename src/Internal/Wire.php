@@ -24,6 +24,8 @@ use Rasuvaeff\Schema\Type\UnionSchema;
  * Internal by design: the public surface stays in the PHP domain;
  * publishing a `serialize()` port is an RFC for after the first consumer
  * pilot.
+ *
+ * @internal
  */
 final class Wire
 {
