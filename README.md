@@ -1,6 +1,12 @@
 # rasuvaeff/schema
 
-![License](https://img.shields.io/packagist/l/rasuvaeff/schema) ![PHP](https://img.shields.io/packagist/dependency-v/rasuvaeff/schema/php)
+![Stable Version](https://img.shields.io/packagist/v/rasuvaeff/schema?label=stable)
+![Total Downloads](https://img.shields.io/packagist/dt/rasuvaeff/schema?label=downloads)
+![Build](https://github.com/rasuvaeff/schema/actions/workflows/build.yml/badge.svg)
+![Static analysis](https://github.com/rasuvaeff/schema/actions/workflows/static-analysis.yml/badge.svg)
+![Psalm level](https://img.shields.io/badge/psalm-level_1-blue.svg)
+![PHP](https://img.shields.io/packagist/dependency-v/rasuvaeff/schema/php)
+![License](https://img.shields.io/packagist/l/rasuvaeff/schema?label=license)
 
 Schema-as-code for PHP: one definition, two ports. The same `Schema::object([...])`
 tree validates runtime input **and** feeds property-based tests a generator over
