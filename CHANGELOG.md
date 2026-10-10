@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Badges (stable version, downloads, build, static analysis, Psalm level,
   PHP, license) and a package description in the sibling packages' style.
 
+## 0.2.0 — 2026-10-10
+
+- Public `toWire()` port on `SchemaInterface`: the PHP→wire projection is
+  out of `Internal\` — an enum instance becomes its backed value, containers
+  convert recursively, a transform's declared `wire` callback is applied,
+  everything else passes through. The inverse pair of `arbitrary()`:
+  generated or parsed PHP values handed to queues, HTTP and JSON storage.
+  Found by the first consumer pilot (keppio): a queue property test needed
+  exactly this projection. Law 2 now dogfoods the public port.
+
 ## 0.1.0 — 2026-10-10
 
 - Initial release: schema-as-code combinators with three ports wired to one

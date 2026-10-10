@@ -64,4 +64,17 @@ interface SchemaInterface
      * export as the inner schema (an honest superset) plus an entry.
      */
     public function toJsonSchema(bool $lenient = false): JsonSchemaExport;
+
+    /**
+     * Project a PHP value of this schema into its wire (JSON) form: an
+     * enum instance becomes its backed value, containers convert
+     * recursively, a transform's declared `wire` callback is applied,
+     * everything else passes through unchanged.
+     *
+     * The inverse pair of the generator's domain: `arbitrary()` produces
+     * PHP values, `toWire()` hands them to queues, HTTP and JSON storage.
+     *
+     * @param mixed $value a value produced by (or parsed through) this schema
+     */
+    public function toWire(mixed $value): mixed;
 }

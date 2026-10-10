@@ -76,6 +76,18 @@ patterns; enum → `Gen::enum` (instances); union → `Gen::frequency` of member
 transform → `Gen::map` (target-space values, source-space shrinking);
 refine → `Gen::filter` (prefer constraints over refinements).
 
+### toWire
+
+```php
+$wire = $schema->toWire($value);   // PHP domain → wire form
+```
+
+enum instance → backed value; containers recursively; nullable null-safe;
+union uses the first member that accepts; a transform's declared `wire`
+callback (identity when absent); everything else passes through. The
+inverse pair of `arbitrary()`: generated/ parsed PHP values handed to
+queues, HTTP and JSON storage.
+
 ### Combinators
 
 ```php

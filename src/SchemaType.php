@@ -8,6 +8,7 @@ use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
+use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\Type\ObjectProperty;
 
 /**
@@ -53,6 +54,12 @@ abstract class SchemaType implements SchemaInterface
      */
     #[\Override]
     abstract public function toJsonSchema(bool $lenient = false): JsonSchemaExport;
+
+    #[\Override]
+    public function toWire(mixed $value): mixed
+    {
+        return Wire::value($this, $value);
+    }
     /**
      * Validate against the source schema, then map the parsed value
      * through `$transform`. Everything the generator produces lives in the
