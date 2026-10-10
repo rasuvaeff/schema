@@ -7,11 +7,11 @@ namespace Rasuvaeff\Schema\Combinator;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Validate against the source schema, then map the parsed value through
@@ -25,14 +25,12 @@ use Rasuvaeff\Schema\SchemaInterface;
  * @template TSource
  * @template TTarget
  *
- * @implements SchemaInterface<TTarget>
+ * @extends SchemaType<TTarget>
  *
  * @api
  */
-final readonly class TransformSchema implements SchemaInterface
+final class TransformSchema extends SchemaType
 {
-    use Combinators;
-
     /**
      * @param SchemaInterface<TSource> $source
      * @param Closure(TSource): TTarget $transform
@@ -40,11 +38,12 @@ final readonly class TransformSchema implements SchemaInterface
      *     by round-trip laws only, never by parse or generation
      */
     public function __construct(
-        public SchemaInterface $source,
-        public Closure $transform,
-        public ?Closure $from = null,
+        public readonly SchemaInterface $source,
+        public readonly Closure $transform,
+        public readonly ?Closure $from = null,
     ) {}
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         $result = $this->source->parse($input);
@@ -53,10 +52,12 @@ final readonly class TransformSchema implements SchemaInterface
             return ParseResult::failed($result->errors);
         }
 
+        /** @var TSource $source */
+        $source = $result->value;
         $transform = $this->transform;
 
         try {
-            return ParseResult::ok($transform($result->value));
+            return ParseResult::ok($transform($source));
         } catch (\Throwable $exception) {
             return ParseResult::failed([
                 // The callback's own message may embed values; the class
@@ -66,17 +67,22 @@ final readonly class TransformSchema implements SchemaInterface
         }
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         $result = $this->parse($input);
 
         if ($result->ok) {
-            return $result->value;
+            /** @var TTarget $value */
+            $value = $result->value;
+
+            return $value;
         }
 
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::map($this->source->arbitrary(), $this->transform);

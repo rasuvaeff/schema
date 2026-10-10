@@ -17,7 +17,7 @@ final class LazySchemaTest
 {
     public function resolvesThroughTheFactory(): void
     {
-        $lazy = Schema::lazy(static fn (): \Rasuvaeff\Schema\Type\StringSchema => Schema::string()->min(2));
+        $lazy = Schema::lazy(static fn(): \Rasuvaeff\Schema\Type\StringSchema => Schema::string()->min(2));
 
         Assert::true($lazy->parse('ab')->ok);
         Assert::false($lazy->parse('a')->ok);
@@ -43,11 +43,15 @@ final class LazySchemaTest
 
     public function supportsRecursiveShapes(): void
     {
+        $node = null;
+
         $node = Schema::lazy(
-            static fn (): \Rasuvaeff\Schema\Type\ObjectSchema => Schema::object([
-                'name' => Schema::string()->min(1),
-                'children' => Schema::arrayOf(Schema::union([Schema::string()->min(1), $node]))->maxCount(2),
-            ]),
+            static function () use (&$node): \Rasuvaeff\Schema\Type\ObjectSchema {
+                return Schema::object([
+                    'name' => Schema::string()->min(1),
+                    'children' => Schema::arrayOf(Schema::union([Schema::string()->min(1), $node]))->maxCount(2),
+                ]);
+            },
         );
 
         $result = $node->parse([

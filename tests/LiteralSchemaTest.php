@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\LiteralSchema;
 use Testo\Assert;

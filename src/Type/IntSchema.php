@@ -6,26 +6,23 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Integer with optional inclusive bounds.
  *
- * @implements SchemaInterface<int>
+ * @extends SchemaType<int>
  *
  * @api
  */
-final readonly class IntSchema implements SchemaInterface
+final class IntSchema extends SchemaType
 {
-    use Combinators;
-
     public function __construct(
-        public ?int $min = null,
-        public ?int $max = null,
+        public readonly ?int $min = null,
+        public readonly ?int $max = null,
     ) {}
 
     public function min(int $value): self
@@ -46,6 +43,7 @@ final readonly class IntSchema implements SchemaInterface
         return new self(min: $this->min, max: $value);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_int($input)) {
@@ -69,6 +67,7 @@ final readonly class IntSchema implements SchemaInterface
         return ParseResult::ok($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): int
     {
         $result = $this->parse($input);
@@ -83,6 +82,7 @@ final readonly class IntSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         $min = $this->min ?? -1000;

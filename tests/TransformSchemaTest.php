@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
-use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
+use Rasuvaeff\Schema\Schema;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -19,7 +19,7 @@ final class TransformSchemaTest
     {
         $schema = Schema::int()
             ->min(0)
-            ->transform(static fn (int $value): string => (string) $value);
+            ->transform(static fn(int $value): string => (string) $value);
 
         $result = $schema->parse(42);
 
@@ -29,7 +29,7 @@ final class TransformSchemaTest
 
     public function sourceFailuresPassThrough(): void
     {
-        $schema = Schema::int()->transform(static fn (int $value): int => $value);
+        $schema = Schema::int()->transform(static fn(int $value): int => $value);
 
         $result = $schema->parse('nope');
 
@@ -53,15 +53,21 @@ final class TransformSchemaTest
 
     public function generatedValuesAreMappedIntoTheTargetSpace(): void
     {
-        $schema = Schema::int()->min(0)->max(9)->transform(static fn (int $value): string => '#' . $value);
+        $schema = Schema::int()->min(0)->max(9)->transform(static fn(int $value): string => '#' . $value);
 
         $random = new Random(37);
 
         for ($i = 0; $i < 25; $i++) {
-            $value = $schema->arbitrary()->generate($random)->value;
+            // The generator produces target-space values: '#<int>'.
+            $target = $schema->arbitrary()->generate($random)->value;
 
-            Assert::string($value)->contains('#');
-            Assert::true($schema->parse($value)->ok);
+            Assert::string($target)->contains('#');
+
+            // Parity for a transform goes through the source: a generated
+            // source value parses into the mapped target value.
+            $source = Schema::int()->min(0)->max(9)->arbitrary()->generate($random)->value;
+
+            Assert::same($schema->parse($source)->value, '#' . $source);
         }
     }
 
@@ -72,7 +78,7 @@ final class TransformSchemaTest
         };
 
         $schema = Schema::int()->transform(
-            static fn (int $value): string => (string) $value,
+            static fn(int $value): string => (string) $value,
             $from,
         );
 

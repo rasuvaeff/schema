@@ -34,7 +34,7 @@ final class StringSchemaTest
     #[DataProvider('rejectionProvider')]
     public function rejectsInvalidInput(mixed $input, string $expected): void
     {
-        $schema = Schema::string()->min(2)->max(4)->regex('/^[a-z]+\z/');
+        $schema = Schema::string()->min(2)->max(4)->regex('^[a-z]+$');
 
         $result = $schema->parse($input);
 
@@ -82,26 +82,32 @@ final class StringSchemaTest
     public static function invalidBoundProvider(): iterable
     {
         yield 'negative min' => [
-            static fn (): StringSchema => Schema::string()->min(-1),
+            static fn(): StringSchema => Schema::string()->min(-1),
         ];
 
         yield 'negative max' => [
-            static fn (): StringSchema => Schema::string()->max(-1),
+            static fn(): StringSchema => Schema::string()->max(-1),
         ];
 
         yield 'min above max via min' => [
-            static fn (): StringSchema => Schema::string()->max(2)->min(3),
+            static fn(): StringSchema => Schema::string()->max(2)->min(3),
         ];
 
         yield 'max below min via max' => [
-            static fn (): StringSchema => Schema::string()->min(3)->max(2),
+            static fn(): StringSchema => Schema::string()->min(3)->max(2),
         ];
     }
 
     #[ExpectException(\InvalidArgumentException::class)]
     public function rejectsAnInvalidPattern(): void
     {
-        Schema::string()->regex('/[a-');
+        Schema::string()->regex('[a-');
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function rejectsAPatternTheGeneratorCannotCompile(): void
+    {
+        Schema::string()->regex('^[a-z]+\z');
     }
 
     public function generatedValuesAlwaysParse(): void
@@ -119,7 +125,7 @@ final class StringSchemaTest
 
     public function generatedPatternValuesAlwaysParse(): void
     {
-        $schema = Schema::string()->regex('/^[a-c]{2,4}\z')->min(2)->max(4);
+        $schema = Schema::string()->regex('^[a-c]{2,4}$')->min(2)->max(4);
 
         $random = new Random(7);
 

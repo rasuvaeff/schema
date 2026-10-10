@@ -66,11 +66,11 @@ final class IntSchemaTest
     public static function invalidBoundProvider(): iterable
     {
         yield 'min above max via min' => [
-            static fn (): IntSchema => Schema::int()->max(2)->min(3),
+            static fn(): IntSchema => Schema::int()->max(2)->min(3),
         ];
 
         yield 'max below min via max' => [
-            static fn (): IntSchema => Schema::int()->min(3)->max(2),
+            static fn(): IntSchema => Schema::int()->min(3)->max(2),
         ];
     }
 

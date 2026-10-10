@@ -6,11 +6,11 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A string-keyed map: every value is parsed by the value schema. Keys are
@@ -19,18 +19,16 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template T
  *
- * @implements SchemaInterface<array<string, T>>
+ * @extends SchemaType<array<string, T>>
  *
  * @api
  */
-final readonly class MapSchema implements SchemaInterface
+final class MapSchema extends SchemaType
 {
-    use Combinators;
-
     public function __construct(
-        public SchemaInterface $value,
-        public ?int $minCount = null,
-        public ?int $maxCount = null,
+        public readonly SchemaInterface $value,
+        public readonly ?int $minCount = null,
+        public readonly ?int $maxCount = null,
     ) {}
 
     public function minCount(int $count): self
@@ -59,6 +57,7 @@ final readonly class MapSchema implements SchemaInterface
         return new self(value: $this->value, minCount: $this->minCount, maxCount: $count);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_array($input)) {
@@ -74,6 +73,9 @@ final readonly class MapSchema implements SchemaInterface
                 ]);
             }
         }
+
+        /** @var list<string> $keys all keys verified strings above */
+        $keys = \array_keys($input);
 
         $count = \count($input);
 
@@ -92,11 +94,14 @@ final readonly class MapSchema implements SchemaInterface
         $values = [];
         $errors = [];
 
-        foreach ($input as $key => $item) {
-            $result = $this->value->parse($item);
+        /** @var array<string, T> $values */
+        foreach ($keys as $key) {
+            $result = $this->value->parse($input[$key]);
 
             if ($result->ok) {
-                $values[$key] = $result->value;
+                /** @var T $parsed */
+                $parsed = $result->value;
+                $values[$key] = $parsed;
             } else {
                 foreach ($result->errors as $error) {
                     $errors[] = $error->withSegment($key);
@@ -111,6 +116,7 @@ final readonly class MapSchema implements SchemaInterface
         return ParseResult::ok($values);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): array
     {
         $result = $this->parse($input);
@@ -125,8 +131,13 @@ final readonly class MapSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
+        if ($this->maxCount === 0) {
+            return Gen::constant([]);
+        }
+
         return Gen::dictOf(
             key: Gen::stringOf(1, 12),
             value: $this->value->arbitrary(),

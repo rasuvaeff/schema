@@ -12,14 +12,14 @@ namespace Rasuvaeff\Schema;
  * the JSONPath-like notation this monorepo's tooling uses
  * (`$.tags[2]`), {@see toJsonPointer()} renders RFC 6901 (`/tags/2`) for
  * the outside world. Both are projections; the segments are the source
- * of truth.
+ * of truth. Root-level errors carry an empty segment list.
  *
  * @api
  */
 final readonly class ParseError
 {
     /**
-     * @param non-empty-list<int|string> $segments
+     * @param list<int|string> $segments
      */
     public function __construct(
         public array $segments,
@@ -52,6 +52,7 @@ final readonly class ParseError
 
     /**
      * RFC 6901 JSON Pointer: `/tags/2/name`, with `~` and `/` escaped.
+     * The root document is the empty string `''`.
      */
     public function toJsonPointer(): string
     {
@@ -59,6 +60,10 @@ final readonly class ParseError
 
         foreach ($this->segments as $segment) {
             $parts[] = \str_replace(['~', '/'], ['~0', '~1'], (string) $segment);
+        }
+
+        if ($parts === []) {
+            return '';
         }
 
         return '/' . \implode('/', $parts);

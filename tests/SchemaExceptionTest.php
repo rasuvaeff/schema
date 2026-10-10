@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
-use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaException;
 use Testo\Assert;

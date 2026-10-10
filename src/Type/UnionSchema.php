@@ -6,36 +6,37 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * First success wins, in declaration order. Overlapping members are an
  * authoring error the parser will silently forgive — write disjoint
  * members or discriminate through an object property.
  *
- * @implements SchemaInterface<mixed>
+ * @extends SchemaType<mixed>
  *
  * @api
  */
-final readonly class UnionSchema implements SchemaInterface
+final class UnionSchema extends SchemaType
 {
-    use Combinators;
-
     /**
-     * @param non-empty-list<SchemaInterface<mixed>> $members
+     * @param list<SchemaInterface<mixed>> $members tried in declaration
+     *     order, first success wins; overlapping members are an authoring
+     *     error the parser will silently forgive — the first member wins
      */
     public function __construct(
-        public array $members,
+        public readonly array $members,
     ) {
         if ($members === []) {
             throw new \InvalidArgumentException('Union requires at least one member schema');
         }
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         $summaries = [];
@@ -58,6 +59,7 @@ final readonly class UnionSchema implements SchemaInterface
         ]);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         $result = $this->parse($input);
@@ -69,6 +71,7 @@ final readonly class UnionSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         $pairs = [];

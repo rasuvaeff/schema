@@ -7,12 +7,12 @@ require __DIR__ . '/../vendor/autoload.php';
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Schema;
 
- enum WebhookStatus: string
- {
-     case Delivered = 'delivered';
-     case Failed = 'failed';
-     case Retrying = 'retrying';
- }
+enum WebhookStatus: string
+{
+    case Delivered = 'delivered';
+    case Failed = 'failed';
+    case Retrying = 'retrying';
+}
 
 $schema = Schema::object([
     'creator_id' => Schema::string()->min(1)->max(64),

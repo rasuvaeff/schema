@@ -6,11 +6,10 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Exactly one constant — compared strictly. The literal is part of the
@@ -18,21 +17,20 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template TValue of string|int|float|bool|null
  *
- * @implements SchemaInterface<TValue>
+ * @extends SchemaType<TValue>
  *
  * @api
  */
-final readonly class LiteralSchema implements SchemaInterface
+final class LiteralSchema extends SchemaType
 {
-    use Combinators;
-
     /**
      * @param TValue $value
      */
     public function __construct(
-        public string|int|float|bool|null $value,
+        public readonly string|int|float|bool|null $value,
     ) {}
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if ($input !== $this->value) {
@@ -41,9 +39,10 @@ final readonly class LiteralSchema implements SchemaInterface
             ]);
         }
 
-        return ParseResult::ok($input);
+        return ParseResult::ok($this->value);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): string|int|float|bool|null
     {
         $result = $this->parse($input);
@@ -55,6 +54,7 @@ final readonly class LiteralSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::constant($this->value);

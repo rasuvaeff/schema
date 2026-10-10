@@ -18,7 +18,7 @@ final class RefineSchemaTest
     public function aPassingPredicateKeepsTheValue(): void
     {
         $schema = Schema::int()->refine(
-            static fn (int $value): bool => $value % 2 === 0,
+            static fn(int $value): bool => $value % 2 === 0,
             'Int must be even',
         );
 
@@ -31,7 +31,7 @@ final class RefineSchemaTest
     public function aFailingPredicateReportsTheMessage(): void
     {
         $schema = Schema::int()->refine(
-            static fn (int $value): bool => $value % 2 === 0,
+            static fn(int $value): bool => $value % 2 === 0,
             'Int must be even',
         );
 
@@ -44,7 +44,7 @@ final class RefineSchemaTest
     public function innerFailuresPassThroughUntouched(): void
     {
         $schema = Schema::int()->refine(
-            static fn (int $value): bool => true,
+            static fn(int $value): bool => true,
             'never reached',
         );
 
@@ -57,7 +57,7 @@ final class RefineSchemaTest
     public function generatedValuesSatisfyTheRefinement(): void
     {
         $schema = Schema::int()->min(0)->max(100)->refine(
-            static fn (int $value): bool => $value % 2 === 0,
+            static fn(int $value): bool => $value % 2 === 0,
             'Int must be even',
         );
 

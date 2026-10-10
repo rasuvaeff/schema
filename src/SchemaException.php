@@ -14,7 +14,7 @@ namespace Rasuvaeff\Schema;
 final class SchemaException extends \RuntimeException
 {
     /**
-     * @param non-empty-list<ParseError> $errors
+     * @param list<ParseError> $errors never empty by construction
      */
     public function __construct(
         public readonly array $errors,
@@ -23,7 +23,7 @@ final class SchemaException extends \RuntimeException
     }
 
     /**
-     * @param non-empty-list<ParseError> $errors
+     * @param list<ParseError> $errors never empty by construction
      */
     private static function render(array $errors): string
     {

@@ -6,10 +6,10 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * The inner schema or null. Nullable is about the value; an optional key
@@ -17,21 +17,20 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template T
  *
- * @implements SchemaInterface<T|null>
+ * @extends SchemaType<T|null>
  *
  * @api
  */
-final readonly class NullableSchema implements SchemaInterface
+final class NullableSchema extends SchemaType
 {
-    use Combinators;
-
     /**
      * @param SchemaInterface<T> $inner
      */
     public function __construct(
-        public SchemaInterface $inner,
+        public readonly SchemaInterface $inner,
     ) {}
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if ($input === null) {
@@ -41,17 +40,22 @@ final readonly class NullableSchema implements SchemaInterface
         return $this->inner->parse($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         $result = $this->parse($input);
 
         if ($result->ok) {
-            return $result->value;
+            /** @var T|null $value */
+            $value = $result->value;
+
+            return $value;
         }
 
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::nullable($this->inner->arbitrary());

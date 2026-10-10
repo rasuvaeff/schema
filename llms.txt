@@ -89,7 +89,9 @@ Schema::lazy(fn (): SchemaInterface => ...);   // recursion, factory memoized
 
 ### Constraints
 
-- string: `min(int)`, `max(int)`, `regex(string $pcreWithDelimiters)`
+- string: `min(int)`, `max(int)`, `regex(string $patternWithoutDelimiters)` —
+  the pattern convention of `Gen::stringMatching`, mirrored so one string
+  drives both parse and generation
 - int: `min(int)`, `max(int)`
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
 - object: `additionalProperties(bool $allow = true)`

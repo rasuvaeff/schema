@@ -42,7 +42,7 @@ final class UnionSchemaTest
     public function laterMembersAreNotTriedAfterASuccess(): void
     {
         $never = Understudy::for(SchemaInterface::class);
-        when(static fn (): ParseResult => $never->parse(Arg::any()))
+        when(static fn(): ParseResult => $never->parse(Arg::any()))
             ->throws(new \RuntimeException('must not be called'));
 
         $schema = Schema::union([
@@ -72,10 +72,10 @@ final class UnionSchemaTest
     public function memberSummariesComeFromTheirOwnFirstErrors(): void
     {
         $first = Understudy::for(SchemaInterface::class);
-        when(static fn (): ParseResult => $first->parse(Arg::any()))
+        when(static fn(): ParseResult => $first->parse(Arg::any()))
             ->returns(ParseResult::failed([new ParseError([], 'first said no')]));
         $second = Understudy::for(SchemaInterface::class);
-        when(static fn (): ParseResult => $second->parse(Arg::any()))
+        when(static fn(): ParseResult => $second->parse(Arg::any()))
             ->returns(ParseResult::failed([new ParseError([], 'second said no')]));
 
         $schema = Schema::union([$first, $second]);

@@ -81,6 +81,12 @@ make release-check
   (shrinks in the source domain — the core's guarantee, do not re-wrap);
   refine → `Gen::filter` (prefer a constraint; refinements burn generation
   budget on discards); enum → `Gen::enum` (instances).
+- **`regex()` accepts the core's pattern convention** — no delimiters, no
+  flags — and eagerly probes `Gen::stringMatching`: a pattern the
+  generator cannot compile (`\z`, and anything else outside the core's
+  PCRE subset) is an authoring error at construction, not an explosion in
+  `arbitrary()`. Use `$` (the `$`-vs-`\z` trailing-newline nuance is the
+  price of guaranteed parity).
 - **Property generators live in `tests/Support/*` as `public static`**
   providers (`SchemaTrees`) — a private static helper in a test class turns
   rector red on release-check.

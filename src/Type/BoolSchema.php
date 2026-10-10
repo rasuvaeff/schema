@@ -6,21 +6,19 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
- * @implements SchemaInterface<bool>
+ * @extends SchemaType<bool>
  *
  * @api
  */
-final readonly class BoolSchema implements SchemaInterface
+final class BoolSchema extends SchemaType
 {
-    use Combinators;
-
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_bool($input)) {
@@ -32,6 +30,7 @@ final readonly class BoolSchema implements SchemaInterface
         return ParseResult::ok($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): bool
     {
         $result = $this->parse($input);
@@ -46,6 +45,7 @@ final readonly class BoolSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::bool();

@@ -6,29 +6,36 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Length-bounded string with an optional full-match pattern. Length is
  * measured in code points (`mb_strlen`), not bytes.
  *
- * @implements SchemaInterface<string>
+ * @extends SchemaType<string>
  *
  * @api
  */
-final readonly class StringSchema implements SchemaInterface
+final class StringSchema extends SchemaType
 {
-    use Combinators;
-
+    /**
+     * @param int<0, max>|null $minLength
+     * @param int<0, max>|null $maxLength
+     * @param string|null $pattern a complete PCRE pattern with delimiters;
+     *     the empty string is rejected eagerly
+     */
     public function __construct(
-        public ?int $minLength = null,
-        public ?int $maxLength = null,
-        public ?string $pattern = null,
-    ) {}
+        public readonly ?int $minLength = null,
+        public readonly ?int $maxLength = null,
+        public readonly ?string $pattern = null,
+    ) {
+        if ($pattern === '') {
+            throw new \InvalidArgumentException('Pattern must not be empty');
+        }
+    }
 
     public function min(int $length): self
     {
@@ -57,9 +64,13 @@ final readonly class StringSchema implements SchemaInterface
     }
 
     /**
-     * @param non-empty-string $pattern a complete PCRE pattern with
-     *     delimiters, validated eagerly: an invalid regex is an authoring
-     *     error, not a parse-time surprise
+     * @param non-empty-string $pattern a PCRE pattern **without delimiters
+     *     and without flags** — the convention of `Gen::stringMatching`,
+     *     mirrored here so the same string drives both parse and
+     *     generation. Inline groups like `(?i)` belong inside the pattern;
+     *     wrapped as `($pattern)` for `preg_match`, so parens stay balanced
+     *     by the grammar of the pattern itself. Invalid regex is an
+     *     authoring error, rejected eagerly
      */
     public function regex(string $pattern): self
     {
@@ -71,7 +82,7 @@ final readonly class StringSchema implements SchemaInterface
         });
 
         try {
-            $probe = \preg_match($pattern, '');
+            $probe = \preg_match('(' . $pattern . ')', '');
         } finally {
             \restore_error_handler();
         }
@@ -80,9 +91,20 @@ final readonly class StringSchema implements SchemaInterface
             throw new \InvalidArgumentException('Invalid regular expression pattern');
         }
 
+        try {
+            Gen::stringMatching($pattern);
+        } catch (\InvalidArgumentException $uncompilable) {
+            throw new \InvalidArgumentException(
+                'Pattern is valid PCRE but not generatable — the parity law requires the generator to produce matching strings; use the supported subset (e.g. `$` instead of `\z`)',
+                0,
+                $uncompilable,
+            );
+        }
+
         return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_string($input)) {
@@ -105,15 +127,21 @@ final readonly class StringSchema implements SchemaInterface
             ]);
         }
 
-        if ($this->pattern !== null && \preg_match($this->pattern, $input) !== 1) {
-            return ParseResult::failed([
-                new ParseError([], 'String does not match the required pattern'),
-            ]);
+        if ($this->pattern !== null) {
+            /** @var non-empty-string $pattern the constructor rejects the empty string */
+            $pattern = $this->pattern;
+
+            if (\preg_match('(' . $pattern . ')', $input) !== 1) {
+                return ParseResult::failed([
+                    new ParseError([], 'String does not match the required pattern'),
+                ]);
+            }
         }
 
         return ParseResult::ok($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): string
     {
         $result = $this->parse($input);
@@ -128,18 +156,18 @@ final readonly class StringSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         if ($this->pattern !== null) {
             $arbitrary = Gen::stringMatching($this->pattern);
-
             if ($this->minLength !== null || $this->maxLength !== null) {
                 $min = $this->minLength ?? 0;
                 $max = $this->maxLength ?? max($min, 100);
 
                 $arbitrary = Gen::filter(
                     $arbitrary,
-                    static fn (string $value): bool => \mb_strlen($value) >= $min && \mb_strlen($value) <= $max,
+                    static fn(string $value): bool => \mb_strlen($value) >= $min && \mb_strlen($value) <= $max,
                 );
             }
 
@@ -149,6 +177,13 @@ final readonly class StringSchema implements SchemaInterface
         $min = $this->minLength ?? 0;
         $max = $this->maxLength ?? 100;
 
-        return Gen::stringOf($min, $max);
+        if ($max === 0) {
+            return Gen::constant('');
+        }
+
+        /** @var int<1, max> $maxLength the zero case returned above */
+        $maxLength = $max;
+
+        return Gen::stringOf($min, $maxLength);
     }
 }

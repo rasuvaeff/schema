@@ -6,11 +6,11 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A sequential list of values, each parsed by the element schema. Element
@@ -18,18 +18,16 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template T
  *
- * @implements SchemaInterface<list<T>>
+ * @extends SchemaType<list<T>>
  *
  * @api
  */
-final readonly class ArraySchema implements SchemaInterface
+final class ArraySchema extends SchemaType
 {
-    use Combinators;
-
     public function __construct(
-        public SchemaInterface $element,
-        public ?int $minCount = null,
-        public ?int $maxCount = null,
+        public readonly SchemaInterface $element,
+        public readonly ?int $minCount = null,
+        public readonly ?int $maxCount = null,
     ) {}
 
     public function minCount(int $count): self
@@ -58,6 +56,7 @@ final readonly class ArraySchema implements SchemaInterface
         return new self(element: $this->element, minCount: $this->minCount, maxCount: $count);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_array($input)) {
@@ -89,11 +88,14 @@ final readonly class ArraySchema implements SchemaInterface
         $values = [];
         $errors = [];
 
-        foreach ($input as $index => $item) {
-            $result = $this->element->parse($item);
+        /** @var list<T> $values */
+        foreach (\array_keys($input) as $index) {
+            $result = $this->element->parse($input[$index]);
 
             if ($result->ok) {
-                $values[] = $result->value;
+                /** @var T $parsed */
+                $parsed = $result->value;
+                $values[] = $parsed;
             } else {
                 foreach ($result->errors as $error) {
                     $errors[] = $error->withSegment($index);
@@ -108,6 +110,7 @@ final readonly class ArraySchema implements SchemaInterface
         return ParseResult::ok($values);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): array
     {
         $result = $this->parse($input);
@@ -122,8 +125,13 @@ final readonly class ArraySchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
+        if ($this->maxCount === 0) {
+            return Gen::constant([]);
+        }
+
         return Gen::arrayOf($this->element->arbitrary(), $this->minCount ?? 0, $this->maxCount ?? 20);
     }
 }

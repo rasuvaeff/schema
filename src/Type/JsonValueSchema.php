@@ -6,25 +6,23 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Any JSON value: null, a finite scalar, a sequential list or a
  * string-keyed map of such values — exactly what `json_decode` can
  * produce. NAN, INF, resources and objects are rejected.
  *
- * @implements SchemaInterface<mixed>
+ * @extends SchemaType<mixed>
  *
  * @api
  */
-final readonly class JsonValueSchema implements SchemaInterface
+final class JsonValueSchema extends SchemaType
 {
-    use Combinators;
-
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!$this->isJson($input)) {
@@ -36,6 +34,7 @@ final readonly class JsonValueSchema implements SchemaInterface
         return ParseResult::ok($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         $result = $this->parse($input);
@@ -47,6 +46,7 @@ final readonly class JsonValueSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::json();
@@ -74,8 +74,8 @@ final readonly class JsonValueSchema implements SchemaInterface
             }
         }
 
-        foreach ($value as $item) {
-            if (!$this->isJson($item)) {
+        foreach (\array_keys($value) as $key) {
+            if (!$this->isJson($value[$key])) {
                 return false;
             }
         }

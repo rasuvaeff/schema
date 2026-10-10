@@ -83,19 +83,19 @@ final class ArraySchemaTest
     public static function invalidBoundProvider(): iterable
     {
         yield 'negative min' => [
-            static fn (): ArraySchema => Schema::arrayOf(Schema::int())->minCount(-1),
+            static fn(): ArraySchema => Schema::arrayOf(Schema::int())->minCount(-1),
         ];
 
         yield 'negative max' => [
-            static fn (): ArraySchema => Schema::arrayOf(Schema::int())->maxCount(-1),
+            static fn(): ArraySchema => Schema::arrayOf(Schema::int())->maxCount(-1),
         ];
 
         yield 'min above max' => [
-            static fn (): ArraySchema => Schema::arrayOf(Schema::int())->maxCount(1)->minCount(2),
+            static fn(): ArraySchema => Schema::arrayOf(Schema::int())->maxCount(1)->minCount(2),
         ];
 
         yield 'max below min' => [
-            static fn (): ArraySchema => Schema::arrayOf(Schema::int())->minCount(2)->maxCount(1),
+            static fn(): ArraySchema => Schema::arrayOf(Schema::int())->minCount(2)->maxCount(1),
         ];
     }
 

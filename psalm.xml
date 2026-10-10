@@ -10,4 +10,16 @@
             <directory name="vendor"/>
         </ignoreFiles>
     </projectFiles>
+    <!--
+        MixedAssignment is suppressed globally (not via per-line @psalm-suppress)
+        because the package's purpose is consuming mixed input at trust boundaries:
+        `parse(mixed $input)` walks decoded payloads whose per-key types are known
+        only per-schema, so accumulating parsed values into `array<string, mixed>`
+        assigns `mixed` by definition. Every mixed that escapes `parse()` is
+        annotated at the consumer (`@var TValue` narrowings in Combinator/*), the
+        same trade-off specification/psalm.xml makes for yiisoft/db row shapes.
+    -->
+    <issueHandlers>
+        <MixedAssignment errorLevel="suppress"/>
+    </issueHandlers>
 </psalm>

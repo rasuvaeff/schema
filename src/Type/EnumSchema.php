@@ -6,11 +6,10 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
-use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A backed enum: parse accepts an instance or its backed value and always
@@ -20,32 +19,44 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template TEnum of \BackedEnum
  *
- * @implements SchemaInterface<TEnum>
+ * @extends SchemaType<TEnum>
  *
  * @api
  */
-final readonly class EnumSchema implements SchemaInterface
+final class EnumSchema extends SchemaType
 {
-    use Combinators;
+    public readonly string $backingType;
 
     /**
      * @param class-string<TEnum> $enum
      */
     public function __construct(
-        public string $enum,
+        public readonly string $enum,
     ) {
         if (!\enum_exists($enum) || !\is_subclass_of($enum, \BackedEnum::class)) {
             throw new \InvalidArgumentException(\sprintf('"%s" is not a backed enum', $enum));
         }
+
+        $backingType = (new \ReflectionEnum($enum))->getBackingType();
+
+        if (!$backingType instanceof \ReflectionNamedType) {
+            throw new \InvalidArgumentException(\sprintf('"%s" has an unexpected backing type', $enum));
+        }
+
+        $this->backingType = $backingType->getName();
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if ($input instanceof $this->enum) {
             return ParseResult::ok($input);
         }
 
-        if (\is_int($input) || \is_string($input)) {
+        $matchesBackingType = ($this->backingType === 'int' && \is_int($input))
+            || ($this->backingType === 'string' && \is_string($input));
+
+        if ($matchesBackingType) {
             $case = $this->enum::tryFrom($input);
 
             if ($case !== null) {
@@ -58,6 +69,7 @@ final readonly class EnumSchema implements SchemaInterface
         ]);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): \BackedEnum
     {
         $result = $this->parse($input);
@@ -72,6 +84,7 @@ final readonly class EnumSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::enum($this->enum);

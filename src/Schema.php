@@ -125,11 +125,11 @@ final class Schema
     }
 
     /**
-     * @param non-empty-list<SchemaInterface> $members tried in declaration
+     * @param list<SchemaInterface> $members tried in declaration
      *     order, first success wins; overlapping members are an authoring
      *     error the parser will silently forgive — the first member wins
      *
-     * @return UnionSchema<mixed>
+     * @return UnionSchema
      */
     public static function union(array $members): UnionSchema
     {

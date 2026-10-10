@@ -130,7 +130,7 @@ final class ObjectSchemaTest
     public function childErrorsArePrefixedWithThePropertyName(): void
     {
         $child = Understudy::for(SchemaInterface::class);
-        when(static fn (): ParseResult => $child->parse(Arg::any()))
+        when(static fn(): ParseResult => $child->parse(Arg::any()))
             ->returns(ParseResult::failed([new ParseError([], 'boom')]));
 
         $schema = Schema::object(['inner' => $child]);

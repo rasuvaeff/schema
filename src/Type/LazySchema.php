@@ -6,30 +6,34 @@ namespace Rasuvaeff\Schema\Type;
 
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseResult;
-use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A deferred schema for recursive definitions. The factory runs once, on
- * first use, and its result is memoized.
+ * first use, and its result is memoized. Self-reference needs a by-value
+ * capture of a variable that does not exist yet — use a closure with an
+ * explicit by-reference capture:
  *
  * ```php
- * $node = Schema::lazy(fn (): ObjectSchema => Schema::object([
- *     'name' => Schema::string(),
- *     'children' => Schema::arrayOf($node ?? Schema::string()),
- * ]));
+ * $node = null;
+ * $node = Schema::lazy(
+ *     static function () use (&$node): ObjectSchema {
+ *         return Schema::object([
+ *             'name' => Schema::string(),
+ *             'children' => Schema::arrayOf($node),
+ *         ]);
+ *     },
+ * );
  * ```
  *
- * @implements SchemaInterface<mixed>
+ * @extends SchemaType<mixed>
  *
  * @api
  */
-final class LazySchema implements SchemaInterface
+final class LazySchema extends SchemaType
 {
-    use Combinators;
-
     private ?SchemaInterface $resolved = null;
 
     /**
@@ -39,16 +43,19 @@ final class LazySchema implements SchemaInterface
         private readonly Closure $factory,
     ) {}
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         return $this->resolve()->parse($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         return $this->resolve()->parseOrThrow($input);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return $this->resolve()->arbitrary();

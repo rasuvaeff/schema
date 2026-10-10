@@ -81,19 +81,19 @@ final class MapSchemaTest
     public static function invalidBoundProvider(): iterable
     {
         yield 'negative min' => [
-            static fn (): MapSchema => Schema::mapOf(Schema::int())->minCount(-1),
+            static fn(): MapSchema => Schema::mapOf(Schema::int())->minCount(-1),
         ];
 
         yield 'negative max' => [
-            static fn (): MapSchema => Schema::mapOf(Schema::int())->maxCount(-1),
+            static fn(): MapSchema => Schema::mapOf(Schema::int())->maxCount(-1),
         ];
 
         yield 'min above max' => [
-            static fn (): MapSchema => Schema::mapOf(Schema::int())->maxCount(1)->minCount(2),
+            static fn(): MapSchema => Schema::mapOf(Schema::int())->maxCount(1)->minCount(2),
         ];
 
         yield 'max below min' => [
-            static fn (): MapSchema => Schema::mapOf(Schema::int())->minCount(2)->maxCount(1),
+            static fn(): MapSchema => Schema::mapOf(Schema::int())->minCount(2)->maxCount(1),
         ];
     }
 

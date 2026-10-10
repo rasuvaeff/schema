@@ -7,11 +7,11 @@ namespace Rasuvaeff\Schema\Type;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A fixed shape: declared properties, each required, optional or
@@ -22,13 +22,14 @@ use Rasuvaeff\Schema\SchemaInterface;
  * **absent from the result** (not null); a defaulted key is always
  * present, carrying the validated, normalized default.
  *
- * @implements SchemaInterface<array<string, mixed>>
+ * @extends SchemaType<array<string, mixed>>
  *
  * @api
  */
-final readonly class ObjectSchema implements SchemaInterface
+final class ObjectSchema extends SchemaType
 {
-    use Combinators;
+    /** @var array<string, ObjectProperty> */
+    public readonly array $properties;
 
     /**
      * @param array<string, SchemaInterface> $properties bare schemas are
@@ -36,14 +37,22 @@ final readonly class ObjectSchema implements SchemaInterface
      *     {@see ObjectProperty}
      */
     public function __construct(
-        public array $properties,
-        public bool $additionalProperties = false,
+        array $properties,
+        public readonly bool $additionalProperties = false,
     ) {
+        $normalized = [];
+
         foreach ($properties as $name => $property) {
-            if (!\is_string($name) || $name === '') {
+            if ($name === '') {
                 throw new \InvalidArgumentException('Property names must be non-empty strings');
             }
+
+            $normalized[$name] = $property instanceof ObjectProperty
+                ? $property
+                : new ObjectProperty($property);
         }
+
+        $this->properties = $normalized;
     }
 
     public function additionalProperties(bool $allow = true): self
@@ -51,6 +60,7 @@ final readonly class ObjectSchema implements SchemaInterface
         return new self(properties: $this->properties, additionalProperties: $allow);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         if (!\is_array($input)) {
@@ -59,6 +69,7 @@ final readonly class ObjectSchema implements SchemaInterface
             ]);
         }
 
+        /** @var array<string, mixed> $values */
         $values = [];
         $errors = [];
 
@@ -98,6 +109,7 @@ final readonly class ObjectSchema implements SchemaInterface
         return ParseResult::ok($values);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): array
     {
         $result = $this->parse($input);
@@ -112,12 +124,14 @@ final readonly class ObjectSchema implements SchemaInterface
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         if ($this->properties === []) {
             return Gen::constant([]);
         }
 
+        /** @var list<ArbitraryInterface<array<string, mixed>>> $generators */
         $generators = [];
 
         foreach ($this->properties as $name => $property) {
@@ -135,7 +149,24 @@ final readonly class ObjectSchema implements SchemaInterface
 
         return Gen::map(
             Gen::tuple(...$generators),
-            static fn (array $parts): array => \array_merge(...$parts),
+            /**
+             * @param list<mixed> $parts
+             *
+             * @return array<string, mixed>
+             */
+            static function (array $parts): array {
+                /** @var array<string, mixed> $merged */
+                $merged = [];
+
+                foreach ($parts as $part) {
+                    /** @var array<string, mixed> $part */
+                    foreach (\array_keys($part) as $key) {
+                        $merged[$key] = $part[$key];
+                    }
+                }
+
+                return $merged;
+            },
         );
     }
 
@@ -144,6 +175,6 @@ final readonly class ObjectSchema implements SchemaInterface
      */
     private static function entry(string $name): Closure
     {
-        return static fn (mixed $value): array => [$name => $value];
+        return static fn(mixed $value): array => [$name => $value];
     }
 }

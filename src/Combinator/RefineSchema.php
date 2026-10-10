@@ -7,11 +7,11 @@ namespace Rasuvaeff\Schema\Combinator;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
-use Rasuvaeff\Schema\Combinators;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A post-condition over the parsed value. Prefer a constraint: `refine`
@@ -20,24 +20,23 @@ use Rasuvaeff\Schema\SchemaInterface;
  *
  * @template TValue
  *
- * @implements SchemaInterface<TValue>
+ * @extends SchemaType<TValue>
  *
  * @api
  */
-final readonly class RefineSchema implements SchemaInterface
+final class RefineSchema extends SchemaType
 {
-    use Combinators;
-
     /**
      * @param SchemaInterface<TValue> $inner
      * @param Closure(TValue): bool $predicate
      */
     public function __construct(
-        public SchemaInterface $inner,
-        public Closure $predicate,
-        public string $message,
+        public readonly SchemaInterface $inner,
+        public readonly Closure $predicate,
+        public readonly string $message,
     ) {}
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         $result = $this->inner->parse($input);
@@ -46,9 +45,10 @@ final readonly class RefineSchema implements SchemaInterface
             return ParseResult::failed($result->errors);
         }
 
-        $predicate = $this->predicate;
+        /** @var TValue $value */
+        $value = $result->value;
 
-        if ($predicate($result->value)) {
+        if (($this->predicate)($value)) {
             return $result;
         }
 
@@ -57,17 +57,22 @@ final readonly class RefineSchema implements SchemaInterface
         ]);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         $result = $this->parse($input);
 
         if ($result->ok) {
-            return $result->value;
+            /** @var TValue $value */
+            $value = $result->value;
+
+            return $value;
         }
 
         throw new SchemaException($result->errors);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::filter($this->inner->arbitrary(), $this->predicate);

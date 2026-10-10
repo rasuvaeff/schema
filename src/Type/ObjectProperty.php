@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Type;
 
-use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\Schema\ParseResult;
-use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
 
 /**
@@ -28,8 +26,11 @@ use Rasuvaeff\Schema\SchemaInterface;
  */
 final readonly class ObjectProperty implements SchemaInterface
 {
+    /**
+     * @param SchemaInterface<TValue> $schema
+     */
     public function __construct(
-        public SchemaInterface $schema,
+        public readonly SchemaInterface $schema,
         public bool $optional = false,
         public bool $hasDefault = false,
         public mixed $default = null,
@@ -71,16 +72,19 @@ final readonly class ObjectProperty implements SchemaInterface
         return new self(schema: $this->schema, optional: true, hasDefault: true, default: $result->value);
     }
 
+    #[\Override]
     public function parse(mixed $input): ParseResult
     {
         return $this->schema->parse($input);
     }
 
+    #[\Override]
     public function parseOrThrow(mixed $input): mixed
     {
         return $this->schema->parseOrThrow($input);
     }
 
+    #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
         return $this->schema->arbitrary();
