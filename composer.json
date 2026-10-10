@@ -1,6 +1,6 @@
 {
     "name": "rasuvaeff/schema",
-    "description": "Schema-as-code combinators: runtime validation, property-based generators and JSON Schema export from one definition",
+    "description": "Schema-as-code combinators for PHP: one definition drives runtime validation, property-based generation and JSON Schema export",
     "license": "BSD-3-Clause",
     "type": "library",
     "keywords": [
