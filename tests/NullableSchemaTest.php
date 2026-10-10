@@ -39,4 +39,30 @@ final class NullableSchemaTest
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
     }
+
+    public function instanceFormMatchesTheFacadeFactory(): void
+    {
+        $chained = Schema::int()->min(1)->nullable();
+        $wrapped = Schema::nullable(Schema::int()->min(1));
+
+        Assert::true($chained->parse(null)->ok);
+        Assert::false($chained->parse(0)->ok);
+        Assert::true($chained->parse(5)->ok);
+        Assert::same(
+            $chained->arbitrary()->generate(new Random(2))->value,
+            $wrapped->arbitrary()->generate(new Random(2))->value,
+        );
+        Assert::same($chained->toJsonSchema()->schema, $wrapped->toJsonSchema()->schema);
+    }
+
+    public function instanceFormWorksAtTheEndOfAChain(): void
+    {
+        $schema = Schema::object([
+            'creator_id' => Schema::int()->min(1)->nullable(),
+        ]);
+
+        Assert::true($schema->parse(['creator_id' => null])->ok);
+        Assert::false($schema->parse(['creator_id' => 0])->ok);
+        Assert::false($schema->parse([])->ok);
+    }
 }

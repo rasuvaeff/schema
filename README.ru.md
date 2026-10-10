@@ -147,6 +147,8 @@ property-тест очереди нуждался ровно в этой про�
 Schema::int()->min(0)->transform(static fn (int $v): string => (string) $v);
 // генерация отображается в целевое пространство; shrink остаётся в исходном
 
+Schema::int()->min(1)->nullable();   // форма-метод == Schema::nullable(...)
+
 Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 'No spaces');
 // предпочитай констрейнты — refine фильтрует генератор и жжёт бюджет
 ```

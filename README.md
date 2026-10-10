@@ -147,6 +147,8 @@ pilot (keppio): the queue property test needed exactly this projection.
 Schema::int()->min(0)->transform(static fn (int $v): string => (string) $v);
 // generation maps into the target space; shrinking stays in the source space
 
+Schema::int()->min(1)->nullable();   // instance form == Schema::nullable(...)
+
 Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 'No spaces');
 // prefer constraints — a refinement filters the generator and burns budget
 ```

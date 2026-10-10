@@ -100,6 +100,8 @@ Schema::int()->transform(
 // Without jsonSchema toJsonSchema() throws in strict mode (the source
 // schema would lie about the target type); lenient exports {} + entry.
 
+Schema::int()->min(1)->nullable();     // instance form == Schema::nullable(...)
+
 Schema::string()->refine(fn (string $v): bool => ..., 'message');
 
 Schema::lazy(fn (): SchemaInterface => ...);   // recursion, factory memoized
