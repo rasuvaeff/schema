@@ -1,0 +1,96 @@
+# rasuvaeff/schema
+
+Install: `composer require rasuvaeff/schema`
+
+Runtime deps: `ext-mbstring`, `rasuvaeff/property-testing-core ^1.2`.
+
+## Rules
+
+- One schema definition powers both validation (`parse()`) and generation
+  (`arbitrary()`) — the parity law: everything generated must parse. Pinned
+  by the package's own property suite; a change to constraints changes both
+  sides in the same commit.
+- `default($v)` is validated against the schema at construction
+  (InvalidArgumentException on the spot) and stored normalized; implies
+  `optional()`.
+- Error messages never embed input values — kinds and sizes only.
+- Combinator order: constraints/combinators first, `optional()`/`default()` last.
+- Union tries members in declaration order, first success wins.
+
+## API
+
+```php
+use Rasuvaeff\Schema\Schema;
+
+$schema = Schema::object([
+    'email' => Schema::string()->min(3)->max(254),        // code-point length
+    'age' => Schema::int()->min(18)->max(120),
+    'active' => Schema::bool(),
+    'kind' => Schema::literal('creator'),                  // strict ===
+    'role' => Schema::enum(Role::class),                   // backed enum
+    'meta' => Schema::json(),                              // json_decode domain
+    'tags' => Schema::arrayOf(Schema::string()->min(1))->maxCount(20),
+    'labels' => Schema::mapOf(Schema::int()),              // string keys
+    'parent' => Schema::nullable(Schema::string()),
+    'idOrName' => Schema::union([Schema::int(), Schema::string()]),
+    'bio' => Schema::string()->max(1000)->default(''),     // ≡ optional
+    'note' => Schema::string()->optional(),                // key may be absent
+], additionalProperties: false);
+```
+
+### parse / parseOrThrow
+
+```php
+$result = $schema->parse($input);       // ParseResult, never throws on bad input
+$result->ok;                            // bool
+$result->value;                         // parsed (normalized) value when ok
+$result->errors;                        // list<ParseError>
+
+$schema->parseOrThrow($input);          // throws SchemaException (all errors)
+```
+
+Enum: accepts an instance or the backed value, returns the instance.
+Object: an absent optional key is absent from the result (not null);
+a defaulted key is always present with the normalized default.
+
+### ParseError
+
+```php
+$error->segments;                       // list<int|string> — source of truth
+$error->toPath();                       // '$.tags[2].name' (monorepo notation)
+$error->toJsonPointer();                // '/tags/2/name' (RFC 6901)
+$error->message;                        // kinds/sizes only, no input values
+```
+
+### arbitrary
+
+```php
+use Rasuvaeff\PropertyTesting\Random;
+
+$value = $schema->arbitrary()->generate(new Random(42))->value;
+// always parses; in property tests: Gen::draw($schema->arbitrary())
+```
+
+Mapping: string → `Gen::stringOf(min, max)` / `Gen::stringMatching` for
+patterns; enum → `Gen::enum` (instances); union → `Gen::frequency` of members;
+transform → `Gen::map` (target-space values, source-space shrinking);
+refine → `Gen::filter` (prefer constraints over refinements).
+
+### Combinators
+
+```php
+Schema::int()->transform(fn (int $v): string => (string) $v, from: ?fn);
+// from (inverse) is for round-trip laws only — parse never calls it.
+
+Schema::string()->refine(fn (string $v): bool => ..., 'message');
+
+Schema::lazy(fn (): SchemaInterface => ...);   // recursion, factory memoized
+```
+
+### Constraints
+
+- string: `min(int)`, `max(int)`, `regex(string $pcreWithDelimiters)`
+- int: `min(int)`, `max(int)`
+- arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
+- object: `additionalProperties(bool $allow = true)`
+- property modifiers: `optional()`, `default(mixed $validated)`
