@@ -7,6 +7,8 @@ namespace Rasuvaeff\Schema\Combinator;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -76,5 +78,18 @@ final class RefineSchema extends SchemaType
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::filter($this->inner->arbitrary(), $this->predicate);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $child = $this->inner->toJsonSchema($lenient);
+
+        // The inner schema is an honest superset: validators accept more
+        // than the refinement allows, which is a weakening, not a lie.
+        return JsonSchemaExport::of(
+            $child->schema,
+            [...$child->nonRepresentable, new NonRepresentable([], 'refine')],
+        );
     }
 }

@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -81,5 +82,11 @@ final class JsonValueSchema extends SchemaType
         }
 
         return true;
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        return JsonSchemaExport::of([]);
     }
 }

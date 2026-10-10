@@ -7,6 +7,9 @@ namespace Rasuvaeff\Schema\Combinator;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
+use Rasuvaeff\Schema\NonRepresentableException;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -36,11 +39,20 @@ final class TransformSchema extends SchemaType
      * @param Closure(TSource): TTarget $transform
      * @param Closure(TTarget): TSource|null $from optional inverse — used
      *     by round-trip laws only, never by parse or generation
+     * @param Closure(TTarget): mixed|null $wire the PHP→JSON converter of
+     *     the target type; without it the wire projection is the identity,
+     *     legal only for JSON-native targets
+     * @param array<string, mixed>|null $jsonSchema the declared wire shape
+     *     of the target type — without it `toJsonSchema()` throws in
+     *     strict mode; with it the fragment is exported and checked
+     *     against the generator's actual output by the package's law 2
      */
     public function __construct(
         public readonly SchemaInterface $source,
         public readonly Closure $transform,
         public readonly ?Closure $from = null,
+        public readonly ?Closure $wire = null,
+        public readonly ?array $jsonSchema = null,
     ) {}
 
     #[\Override]
@@ -86,5 +98,21 @@ final class TransformSchema extends SchemaType
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::map($this->source->arbitrary(), $this->transform);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        if ($this->jsonSchema !== null) {
+            return JsonSchemaExport::of($this->jsonSchema);
+        }
+
+        if (!$lenient) {
+            throw new NonRepresentableException(
+                'Transform without a declared jsonSchema codec — exporting the source schema would lie about the target type; declare the codec via transform(..., jsonSchema: [...]) or export lenient',
+            );
+        }
+
+        return JsonSchemaExport::of([], [new NonRepresentable([], 'transform')]);
     }
 }

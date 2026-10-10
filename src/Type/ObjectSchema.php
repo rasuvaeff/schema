@@ -7,6 +7,8 @@ namespace Rasuvaeff\Schema\Type;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -176,5 +178,42 @@ final class ObjectSchema extends SchemaType
     private static function entry(string $name): Closure
     {
         return static fn(mixed $value): array => [$name => $value];
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $properties = [];
+        $required = [];
+        $nonRepresentable = [];
+
+        foreach ($this->properties as $name => $property) {
+            $child = $property->schema->toJsonSchema($lenient);
+            $properties[$name] = $child->schema;
+
+            foreach ($child->nonRepresentable as $entry) {
+                $nonRepresentable[] = $entry->withSegment($name);
+            }
+
+            if ($property->hasDefault) {
+                // The annotation goes through the wire seam: an enum
+                // default instance is exported as its backed value.
+                $properties[$name]['default'] = Wire::value($property->schema, $property->default);
+            } elseif (!$property->optional) {
+                $required[] = $name;
+            }
+        }
+
+        $schema = [
+            'type' => 'object',
+            'properties' => $properties,
+            'additionalProperties' => $this->additionalProperties,
+        ];
+
+        if ($required !== []) {
+            $schema['required'] = $required;
+        }
+
+        return JsonSchemaExport::of($schema, $nonRepresentable);
     }
 }

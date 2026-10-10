@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\SchemaType;
@@ -61,7 +62,16 @@ final class LazySchema extends SchemaType
         return $this->resolve()->arbitrary();
     }
 
-    private function resolve(): SchemaInterface
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        return $this->resolve()->toJsonSchema($lenient);
+    }
+
+    /**
+     * @internal the memoization seam; the factory runs exactly once
+     */
+    public function resolve(): SchemaInterface
     {
         if ($this->resolved === null) {
             $factory = $this->factory;

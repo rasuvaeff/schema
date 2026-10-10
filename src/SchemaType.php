@@ -49,6 +49,12 @@ abstract class SchemaType implements SchemaInterface
      */
     #[\Override]
     abstract public function arbitrary(): ArbitraryInterface;
+
+    /**
+     * @see SchemaInterface::toJsonSchema() for the strict/lenient contract
+     */
+    #[\Override]
+    abstract public function toJsonSchema(bool $lenient = false): JsonSchemaExport;
     /**
      * Validate against the source schema, then map the parsed value
      * through `$transform`. Everything the generator produces lives in the
@@ -60,12 +66,24 @@ abstract class SchemaType implements SchemaInterface
      * @param Closure(TValue): TTarget $transform
      * @param Closure(TTarget): TValue|null $from optional inverse, needed
      *     only for round-trip laws, never for parse or generation
+     * @param Closure(TTarget): mixed|null $wire the PHP→JSON converter of
+     *     the target type; without it the wire projection is the identity,
+     *     legal only for JSON-native targets
+     * @param array<string, mixed>|null $jsonSchema the declared wire shape
+     *     of the target type. Without it `toJsonSchema()` throws in strict
+     *     mode; with it the declared fragment is exported — and the
+     *     package's law 2 checks it against the generator's actual output,
+     *     so a lying codec fails on the author
      *
      * @return TransformSchema<TValue, TTarget>
      */
-    public function transform(Closure $transform, ?Closure $from = null): TransformSchema
-    {
-        return new TransformSchema($this, $transform, $from);
+    public function transform(
+        Closure $transform,
+        ?Closure $from = null,
+        ?Closure $wire = null,
+        ?array $jsonSchema = null,
+    ): TransformSchema {
+        return new TransformSchema($this, $transform, $from, $wire, $jsonSchema);
     }
 
     /**

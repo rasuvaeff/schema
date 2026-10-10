@@ -79,19 +79,48 @@ refine → `Gen::filter` (prefer constraints over refinements).
 ### Combinators
 
 ```php
-Schema::int()->transform(fn (int $v): string => (string) $v, from: ?fn);
-// from (inverse) is for round-trip laws only — parse never calls it.
+Schema::int()->transform(
+    fn (int $v): string => (string) $v,
+    from: ?fn (string $v): int,        // round-trip laws only
+    wire: ?fn (string $v): mixed,      // PHP→JSON of the target type
+    jsonSchema: ?['type' => 'string'], // declared wire shape — exported as is
+);
+// Without jsonSchema toJsonSchema() throws in strict mode (the source
+// schema would lie about the target type); lenient exports {} + entry.
 
 Schema::string()->refine(fn (string $v): bool => ..., 'message');
 
 Schema::lazy(fn (): SchemaInterface => ...);   // recursion, factory memoized
 ```
 
+### toJsonSchema
+
+```php
+$export = $schema->toJsonSchema();                // strict default
+$export = $schema->toJsonSchema(lenient: true);   // {} for codec-less transforms
+
+$export->schema;                      // pure draft 2020-12 fragment
+$export->nonRepresentable;            // list<NonRepresentable> ('refine @ $.tags')
+$export->assertFullyRepresentable();  // throws listing every entry
+```
+
+Fragments: string `{type, minLength, maxLength, pattern, format}`; int
+`{type: integer, minimum, maximum}`; bool `{type: boolean}`; literal
+`{const}`; enum `{type, enum: [backed values]}`; json `{}`; array
+`{type: array, items, minItems, maxItems}`; map `{type: object,
+additionalProperties, min/maxProperties}`; object `{type: object,
+properties, required, additionalProperties, default}` (default through the
+wire seam — an enum instance exports as its backed value); nullable
+`{anyOf: [{type: 'null'}, inner]}`; union `{anyOf: [...]}`; refine → inner
+schema (honest superset) + entry; transform → declared codec.
+
 ### Constraints
 
-- string: `min(int)`, `max(int)`, `regex(string $patternWithoutDelimiters)` —
-  the pattern convention of `Gen::stringMatching`, mirrored so one string
-  drives both parse and generation
+- string: `min(int)`, `max(int)`, `regex(string $patternWithoutDelimiters)`
+  (the `Gen::stringMatching` convention; eagerly probed for generatability —
+  `\z` is rejected, use `$`), `format(Format::Email|Uuid|Url|DateTime|Ipv4)`
+  (format and pattern are mutually exclusive; a format + tight bounds can
+  empty the value set — generation then fails loudly)
 - int: `min(int)`, `max(int)`
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
 - object: `additionalProperties(bool $allow = true)`

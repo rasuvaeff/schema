@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -58,5 +59,11 @@ final class LiteralSchema extends SchemaType
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::constant($this->value);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        return JsonSchemaExport::of(['const' => $this->value]);
     }
 }

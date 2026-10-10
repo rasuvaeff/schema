@@ -99,6 +99,34 @@ public function queuePayloadIsHandled(SchemaInterface $payload): void
 }
 ```
 
+### Экспорт
+
+```php
+$export = $user->toJsonSchema();          // strict (по умолчанию): transform
+                                          // без кодека бросает исключение
+$export->schema;                          // чистый фрагмент draft 2020-12
+$export->nonRepresentable;                // list<NonRepresentable>: что
+                                          // отброшено, с путями
+$export->assertFullyRepresentable();      // кидает, перечисляя все записи
+
+$user->toJsonSchema(lenient: true);       // transform без кодека экспортируется
+                                          // как {} + запись вместо исключения
+```
+
+Refine всегда экспортируется внутренней схемой — честное надмножество,
+отражённое в `nonRepresentable`. Transform с объявленным кодеком экспортирует
+его — и закон 2 пакета проверяет кодек против фактического вывода генератора.
+`default`-аннотация объекта проходит через wire-шов: enum-инстанс
+экспортируется backed-значением.
+
+### Wire (внутренний шов)
+
+`parse`/`arbitrary` живут в PHP-домене (enum остаётся инстансом); экспорт и
+его закон паритета — в JSON-домене. Проекция — enum → backed-значение,
+контейнеры рекурсивно, объявленный `wire`-колбэк transform'а — это
+внутренний шов `Wire`; публикация его как порта `serialize()` — план после
+первого пилота у потребителя.
+
 ### Комбинаторы
 
 ```php

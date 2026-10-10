@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaInterface;
 
@@ -88,5 +89,11 @@ final readonly class ObjectProperty implements SchemaInterface
     public function arbitrary(): ArbitraryInterface
     {
         return $this->schema->arbitrary();
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        return $this->schema->toJsonSchema($lenient);
     }
 }

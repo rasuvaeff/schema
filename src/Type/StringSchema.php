@@ -6,6 +6,8 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\Format;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -31,9 +33,14 @@ final class StringSchema extends SchemaType
         public readonly ?int $minLength = null,
         public readonly ?int $maxLength = null,
         public readonly ?string $pattern = null,
+        public readonly ?Format $format = null,
     ) {
         if ($pattern === '') {
             throw new \InvalidArgumentException('Pattern must not be empty');
+        }
+
+        if ($pattern !== null && $format !== null) {
+            throw new \InvalidArgumentException('Pattern and format are mutually exclusive — combine lengths with one of them');
         }
     }
 
@@ -104,6 +111,20 @@ final class StringSchema extends SchemaType
         return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern);
     }
 
+    /**
+     * A named format — a closed pair: the JSON Schema `format` keyword and
+     * the generator primitive both come with the enum case.
+     */
+    public function format(Format $format): self
+    {
+        return new self(
+            minLength: $this->minLength,
+            maxLength: $this->maxLength,
+            pattern: $this->pattern,
+            format: $format,
+        );
+    }
+
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
@@ -127,6 +148,12 @@ final class StringSchema extends SchemaType
             ]);
         }
 
+        if ($this->format !== null && !$this->formatAccepts($input)) {
+            return ParseResult::failed([
+                new ParseError([], \sprintf('String is not a valid %s', $this->format->value)),
+            ]);
+        }
+
         if ($this->pattern !== null) {
             /** @var non-empty-string $pattern the constructor rejects the empty string */
             $pattern = $this->pattern;
@@ -139,6 +166,19 @@ final class StringSchema extends SchemaType
         }
 
         return ParseResult::ok($input);
+    }
+
+    private function formatAccepts(string $input): bool
+    {
+        \assert($this->format !== null);
+
+        return match ($this->format) {
+            Format::Email => \filter_var($input, \FILTER_VALIDATE_EMAIL) !== false,
+            Format::Uuid => \preg_match('(^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z)i', $input) === 1,
+            Format::Url => \filter_var($input, \FILTER_VALIDATE_URL) !== false,
+            Format::DateTime => \DateTimeImmutable::createFromFormat(\DATE_RFC3339_EXTENDED, $input) !== false,
+            Format::Ipv4 => \filter_var($input, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false,
+        };
     }
 
     #[\Override]
@@ -159,6 +199,31 @@ final class StringSchema extends SchemaType
     #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
+        if ($this->format !== null) {
+            $arbitrary = match ($this->format) {
+                Format::Email => Gen::email(),
+                Format::Uuid => Gen::uuid(),
+                Format::Url => Gen::url(),
+                Format::Ipv4 => Gen::ipv4(),
+                Format::DateTime => Gen::map(
+                    Gen::datetime(),
+                    static fn(\DateTimeImmutable $dateTime): string => $dateTime->format(\DATE_RFC3339_EXTENDED),
+                ),
+            };
+
+            if ($this->minLength !== null || $this->maxLength !== null) {
+                $min = $this->minLength ?? 0;
+                $max = $this->maxLength ?? \max($min, 100);
+
+                $arbitrary = Gen::filter(
+                    $arbitrary,
+                    static fn(string $value): bool => \mb_strlen($value) >= $min && \mb_strlen($value) <= $max,
+                );
+            }
+
+            return $arbitrary;
+        }
+
         if ($this->pattern !== null) {
             $arbitrary = Gen::stringMatching($this->pattern);
             if ($this->minLength !== null || $this->maxLength !== null) {
@@ -185,5 +250,29 @@ final class StringSchema extends SchemaType
         $maxLength = $max;
 
         return Gen::stringOf($min, $maxLength);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $schema = ['type' => 'string'];
+
+        if ($this->minLength !== null) {
+            $schema['minLength'] = $this->minLength;
+        }
+
+        if ($this->maxLength !== null) {
+            $schema['maxLength'] = $this->maxLength;
+        }
+
+        if ($this->pattern !== null) {
+            $schema['pattern'] = $this->pattern;
+        }
+
+        if ($this->format !== null) {
+            $schema['format'] = $this->format->value;
+        }
+
+        return JsonSchemaExport::of($schema);
     }
 }

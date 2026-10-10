@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -133,5 +134,26 @@ final class ArraySchema extends SchemaType
         }
 
         return Gen::arrayOf($this->element->arbitrary(), $this->minCount ?? 0, $this->maxCount ?? 20);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $child = $this->element->toJsonSchema($lenient);
+
+        $schema = [
+            'type' => 'array',
+            'items' => $child->schema,
+        ];
+
+        if ($this->minCount !== null) {
+            $schema['minItems'] = $this->minCount;
+        }
+
+        if ($this->maxCount !== null) {
+            $schema['maxItems'] = $this->maxCount;
+        }
+
+        return JsonSchemaExport::of($schema, $child->nonRepresentable);
     }
 }

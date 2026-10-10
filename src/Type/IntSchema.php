@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -66,7 +67,6 @@ final class IntSchema extends SchemaType
 
         return ParseResult::ok($input);
     }
-
     #[\Override]
     public function parseOrThrow(mixed $input): int
     {
@@ -89,5 +89,21 @@ final class IntSchema extends SchemaType
         $max = $this->max ?? \max($min, 1000);
 
         return Gen::intBetween($min, $max);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $schema = ['type' => 'integer'];
+
+        if ($this->min !== null) {
+            $schema['minimum'] = $this->min;
+        }
+
+        if ($this->max !== null) {
+            $schema['maximum'] = $this->max;
+        }
+
+        return JsonSchemaExport::of($schema);
     }
 }

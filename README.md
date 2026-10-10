@@ -99,6 +99,34 @@ public function queuePayloadIsHandled(SchemaInterface $payload): void
 }
 ```
 
+### Export
+
+```php
+$export = $user->toJsonSchema();          // strict (default): a transform
+                                          // without a declared codec throws
+$export->schema;                          // pure draft 2020-12 fragment
+$export->nonRepresentable;                // list<NonRepresentable>: what
+                                          // was dropped, with paths
+$export->assertFullyRepresentable();      // throws listing every entry
+
+$user->toJsonSchema(lenient: true);       // a codec-less transform exports
+                                          // as {} + an entry instead
+```
+
+Refinements always export as the inner schema — an honest superset, recorded
+in `nonRepresentable`. A transform with a declared codec exports it, and the
+package's own law 2 checks the codec against the generator's actual output.
+An object's `default` annotation goes through the wire seam: an enum default
+instance is exported as its backed value.
+
+### Wire (internal)
+
+`parse`/`arbitrary` live in the PHP domain (an enum stays an instance);
+the export and its parity law live in the JSON domain. The projection —
+enum → backed value, containers recursively, a transform's declared `wire`
+callback — is the internal `Wire` seam; publishing it as a `serialize()`
+port is planned after the first consumer pilot.
+
 ### Combinators
 
 ```php

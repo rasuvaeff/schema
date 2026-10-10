@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -81,5 +82,23 @@ final class UnionSchema extends SchemaType
         }
 
         return Gen::frequency($pairs);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $anyOf = [];
+        $nonRepresentable = [];
+
+        foreach ($this->members as $member) {
+            $child = $member->toJsonSchema($lenient);
+            $anyOf[] = $child->schema;
+
+            foreach ($child->nonRepresentable as $entry) {
+                $nonRepresentable[] = $entry;
+            }
+        }
+
+        return JsonSchemaExport::of(['anyOf' => $anyOf], $nonRepresentable);
     }
 }

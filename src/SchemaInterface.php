@@ -55,4 +55,16 @@ interface SchemaInterface
      * @return ArbitraryInterface<TValue>
      */
     public function arbitrary(): ArbitraryInterface;
+
+    /**
+     * Export the wire form as a pure draft 2020-12 JSON Schema fragment.
+     *
+     * Strict by default: a transform without a declared codec throws
+     * {@see NonRepresentableException} — exporting the source schema
+     * would lie about the target type. With `$lenient` such a node
+     * exports as an empty fragment (any value) and a
+     * {@see NonRepresentable} entry records the drop. Refinements always
+     * export as the inner schema (an honest superset) plus an entry.
+     */
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport;
 }

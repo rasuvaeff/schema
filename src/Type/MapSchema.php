@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -144,5 +145,26 @@ final class MapSchema extends SchemaType
             minSize: $this->minCount ?? 0,
             maxSize: $this->maxCount ?? 20,
         );
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $child = $this->value->toJsonSchema($lenient);
+
+        $schema = [
+            'type' => 'object',
+            'additionalProperties' => $child->schema,
+        ];
+
+        if ($this->minCount !== null) {
+            $schema['minProperties'] = $this->minCount;
+        }
+
+        if ($this->maxCount !== null) {
+            $schema['maxProperties'] = $this->maxCount;
+        }
+
+        return JsonSchemaExport::of($schema, $child->nonRepresentable);
     }
 }

@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
@@ -59,5 +60,21 @@ final class NullableSchema extends SchemaType
     public function arbitrary(): ArbitraryInterface
     {
         return Gen::nullable($this->inner->arbitrary());
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $child = $this->inner->toJsonSchema($lenient);
+
+        return JsonSchemaExport::of(
+            [
+                'anyOf' => [
+                    ['type' => 'null'],
+                    $child->schema,
+                ],
+            ],
+            $child->nonRepresentable,
+        );
     }
 }

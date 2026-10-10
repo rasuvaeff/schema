@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -103,5 +104,22 @@ final class EnumSchema extends SchemaType
         }
 
         return \implode(', ', $values);
+    }
+
+    #[\Override]
+    public function toJsonSchema(bool $lenient = false): JsonSchemaExport
+    {
+        $backedValues = [];
+
+        foreach ($this->enum::cases() as $case) {
+            $backedValues[] = $case->value;
+        }
+
+        return JsonSchemaExport::of([
+            // PHP's reflection name for an int backing type is "int";
+            // JSON Schema calls it "integer".
+            'type' => $this->backingType === 'int' ? 'integer' : 'string',
+            'enum' => $backedValues,
+        ]);
     }
 }

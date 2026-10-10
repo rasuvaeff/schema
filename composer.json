@@ -24,6 +24,7 @@
     },
     "require": {
         "php": "8.3 - 8.5",
+        "ext-filter": "*",
         "ext-mbstring": "*",
         "rasuvaeff/property-testing-core": "^1.2"
     },
@@ -32,6 +33,7 @@
         "friendsofphp/php-cs-fixer": "^3.95",
         "infection/infection": "^0.35",
         "maglnet/composer-require-checker": "^4.17",
+        "opis/json-schema": "^2.6",
         "rasuvaeff/property-testing-testo": "^1.0",
         "rasuvaeff/rector-named-literals": "^1.0",
         "rasuvaeff/understudy-testo": "^1.0",
