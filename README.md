@@ -125,13 +125,21 @@ package's own law 2 checks the codec against the generator's actual output.
 An object's `default` annotation goes through the wire seam: an enum default
 instance is exported as its backed value.
 
-### Wire (internal)
+### Wire: `toWire()`
 
 `parse`/`arbitrary` live in the PHP domain (an enum stays an instance);
-the export and its parity law live in the JSON domain. The projection —
-enum → backed value, containers recursively, a transform's declared `wire`
-callback — is the internal `Wire` seam; publishing it as a `serialize()`
-port is planned after the first consumer pilot.
+queues, HTTP and JSON storage need the wire form. `toWire()` is the
+projection: an enum instance becomes its backed value, containers convert
+recursively, a transform's declared `wire` callback is applied, everything
+else passes through.
+
+```php
+$wire = $user->toWire($parsed);   // ['role' => Role::Admin, ...] → ['role' => 'admin', ...]
+```
+
+The inverse pair of the generator's domain — `arbitrary()` produces PHP
+values, `toWire()` hands them to the wire. Found by the first consumer
+pilot (keppio): the queue property test needed exactly this projection.
 
 ### Combinators
 

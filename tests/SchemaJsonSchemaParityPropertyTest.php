@@ -11,7 +11,6 @@ use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Property;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
-use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
@@ -50,7 +49,7 @@ final class SchemaJsonSchemaParityPropertyTest
 
         $validator = new Validator();
 
-        $data = self::toJson($schema, Wire::value($schema, $value));
+        $data = self::toJson($schema, $schema->toWire($value));
         $fragment = self::toSchema($export->schema);
 
         Assert::true($validator->validate($data, $fragment)->isValid());

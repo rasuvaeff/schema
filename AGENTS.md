@@ -60,14 +60,15 @@ make release-check
 ## Invariants & gotchas
 
 - **Two domains: PHP values and wire.** `parse`/`arbitrary` work with PHP
-  values (an enum stays an instance); anything JSON-flavoured goes through
-  a `toWire` projection (`Internal\Wire`) — an enum instance is never fed
-  to a JSON Schema validator directly. Law 1 (generated ⇒ parses) runs in
-  the source domain — a bare transform's generator produces the target
-  space, so transform-bearing trees belong to law 2 only; law 2 (wire of
-  generated validates against the opis-checked export) runs in the wire
-  domain with schema-aware stdClass conversion (opis reads PHP arrays as
-  JSON arrays, stdClass as objects; an empty map is `{}`, never `[]`).
+  values (an enum stays an instance); the projection to the wire form is
+  the public `toWire()` port (`SchemaType` dispatches through the internal
+  `Wire`) — an enum instance is never fed to a JSON Schema validator
+  directly. Law 1 (generated ⇒ parses) runs in the source domain — a bare
+  transform's generator produces the target space, so transform-bearing
+  trees belong to law 2 only; law 2 (toWire of generated validates against
+  the opis-checked export) runs in the wire domain with schema-aware
+  stdClass conversion (opis reads PHP arrays as JSON arrays, stdClass as
+  objects; an empty map is `{}`, never `[]`).
 - **optional ≠ nullable.** `optional()` is about the presence of an object
   key (absent key stays absent in the parse result); `nullable()` is about
   the value. `default()` implies `optional()` and stores the parsed,

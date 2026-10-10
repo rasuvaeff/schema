@@ -97,4 +97,10 @@ final readonly class ObjectProperty implements SchemaInterface
     {
         return $this->schema->toJsonSchema($lenient);
     }
+
+    #[\Override]
+    public function toWire(mixed $value): mixed
+    {
+        return $this->schema->toWire($value);
+    }
 }
