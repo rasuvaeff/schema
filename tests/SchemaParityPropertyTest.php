@@ -12,7 +12,9 @@ use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\BoolSchema;
+use Rasuvaeff\Schema\Type\DateTimeSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
+use Rasuvaeff\Schema\Type\FloatSchema;
 use Rasuvaeff\Schema\Type\IntSchema;
 use Rasuvaeff\Schema\Type\JsonValueSchema;
 use Rasuvaeff\Schema\Type\LiteralSchema;
@@ -33,6 +35,8 @@ use Testo\Test;
 #[Covers(Schema::class)]
 #[Covers(StringSchema::class)]
 #[Covers(IntSchema::class)]
+#[Covers(FloatSchema::class)]
+#[Covers(DateTimeSchema::class)]
 #[Covers(BoolSchema::class)]
 #[Covers(LiteralSchema::class)]
 #[Covers(EnumSchema::class)]

@@ -200,9 +200,26 @@ final class StringSchema extends SchemaType
             Format::Email => \filter_var($input, \FILTER_VALIDATE_EMAIL) !== false,
             Format::Uuid => \preg_match('(^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z)i', $input) === 1,
             Format::Url => \filter_var($input, \FILTER_VALIDATE_URL) !== false,
-            Format::DateTime => \DateTimeImmutable::createFromFormat(\DATE_RFC3339_EXTENDED, $input) !== false,
+            Format::DateTime => $this->rfc3339($input) instanceof \DateTimeImmutable,
             Format::Ipv4 => \filter_var($input, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false,
         };
+    }
+
+    /**
+     * The shared RFC 3339 reader: strict about rolled-over components
+     * (`25:00`) and trailing data, both of which `createFromFormat`
+     * alone would forgive. The same rule lives in
+     * {@see DateTimeSchema::parse()} — one wire format, one verdict.
+     */
+    private function rfc3339(string $input): ?\DateTimeImmutable
+    {
+        $parsed = \DateTimeImmutable::createFromFormat(\DATE_RFC3339_EXTENDED, $input);
+
+        if ($parsed === false || \DateTimeImmutable::getLastErrors() !== false) {
+            return null;
+        }
+
+        return $parsed;
     }
 
     #[\Override]

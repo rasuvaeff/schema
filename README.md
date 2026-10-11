@@ -58,6 +58,8 @@ $user = Schema::object([
     'tags' => Schema::arrayOf(Schema::string()->min(1))->maxCount(20),
     'bio' => Schema::string()->max(1000)->default(''),   // default ≡ optional
     'meta' => Schema::mapOf(Schema::json())->optional(),
+    'score' => Schema::float()->min(0.0)->max(1.0),       // finite floats only
+    'created_at' => Schema::dateTime(),                   // RFC 3339 in, DateTimeImmutable out
 ]);
 ```
 
@@ -182,6 +184,8 @@ The `Schema` facade is the single entry point; every factory returns a
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format`; rejects invalid UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
+| `Type\FloatSchema` | `Schema::float()` | finite only (NaN/INF rejected); `min`/`max`, `allowInt()`; export `type: number` |
+| `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 wire ↔ `DateTimeImmutable` domain; inclusive `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; instance or backed value in, instance out |
