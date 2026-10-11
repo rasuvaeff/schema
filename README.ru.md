@@ -77,6 +77,9 @@ if (!$result->ok) {
 }
 
 $value = $user->parseOrThrow($payload);  // SchemaException несёт все ошибки
+// SchemaException наследует InvalidArgumentException — это невалидный вход,
+// а не сбой рантайма. Потребители с контрактом InvalidArgumentException
+// могут прокину́ть его дальше без try/catch-обёртки.
 ```
 
 Семантика объекта, зафиксирована: отсутствующий optional-ключ **отсутствует
@@ -177,7 +180,7 @@ code-point'ах и движок паттернов никогда не расх�
 | Тип | Фабрика | Примечания |
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format`; отвергает невалидный UTF-8 |
-| `Type\IntSchema` | `Schema::int()` | `min`/`max` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; инстанс или backed-значение на входе, инстанс на выходе |

@@ -76,6 +76,9 @@ if (!$result->ok) {
 }
 
 $value = $user->parseOrThrow($payload);  // SchemaException carries every error
+// SchemaException extends InvalidArgumentException — an invalid input,
+// not a runtime failure. Consumers with an InvalidArgumentException
+// contract can let it propagate as is.
 ```
 
 Object semantics, pinned: an absent optional key is **absent from the result**
@@ -178,7 +181,7 @@ The `Schema` facade is the single entry point; every factory returns a
 | Type | Factory | Notes |
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format`; rejects invalid UTF-8 |
-| `Type\IntSchema` | `Schema::int()` | `min`/`max` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; instance or backed value in, instance out |

@@ -44,6 +44,24 @@ final class IntSchema extends SchemaType
         return new self(min: $this->min, max: $value);
     }
 
+    /**
+     * `>= 1` — the named intent of every entity id, a thin wrapper over
+     * `min(1)` with identical parse, generator and JSON Schema export.
+     */
+    public function positive(): self
+    {
+        return $this->min(1);
+    }
+
+    /**
+     * `>= 0` — the named intent of counters and quantities, a thin wrapper
+     * over `min(0)`.
+     */
+    public function nonNegative(): self
+    {
+        return $this->min(0);
+    }
+
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
