@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Badges (stable version, downloads, build, static analysis, Psalm level,
   PHP, license) and a package description in the sibling packages' style.
+- `string()` rejects invalid UTF-8 up-front, before any length, format or
+  pattern check — the domain is JSON strings, so the code-point length and
+  the pattern engine never disagree about the input (#12).
+- A PCRE engine failure during a pattern check (e.g. backtrack limit
+  exhausted) is reported as its own error — `Pattern check failed (PCRE
+  engine error: …)` — never as a plain pattern mismatch (#11).
 
 ## 0.3.0 — 2026-10-10
 

@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Schema;
+use Rasuvaeff\Schema\Type\StringSchema;
 use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;
@@ -134,5 +135,76 @@ final class StringSchemaTest
 
             Assert::true($schema->parse($value)->ok, \sprintf('value #%d failed to parse', $i));
         }
+    }
+
+    #[DataProvider('invalidUtf8Provider')]
+    public function rejectsInvalidUtf8BeforeAnyConstraint(string $input): void
+    {
+        $result = Schema::string()->min(1)->regex('^.+$')->parse($input);
+
+        Assert::false($result->ok);
+        Assert::same($result->errors[0]->message, 'String is not valid UTF-8');
+        Assert::same($result->errors[0]->toPath(), '$');
+    }
+
+    public static function invalidUtf8Provider(): iterable
+    {
+        yield 'invalid two-byte sequence' => ["\xC3\x28"];
+
+        yield 'stray continuation byte' => ["a\xB1b"];
+
+        yield 'truncated three-byte sequence' => ["\xE2\x82"];
+
+        yield 'overlong encoding' => ["\xC0\xAF"];
+
+        yield 'encoded lone surrogate half' => ["\xED\xA0\x80"];
+
+        yield 'trailing invalid byte after valid text' => ["hello\xFF"];
+    }
+
+    public function acceptsValidUtf8IncludingAstral(): void
+    {
+        $schema = Schema::string()->min(3);
+
+        Assert::true($schema->parse('ёжик 🦔')->ok);
+    }
+
+    public function reportsAnEngineFailureDistinctlyFromAMismatch(): void
+    {
+        // A pattern fed through the constructor bypasses regex()'s eager
+        // probe, so its compilation fails only at match time — the one
+        // engine failure a modern PCRE (10.43+ minimizes catastrophic
+        // backtracking) still hands us deterministically.
+        $schema = new StringSchema(pattern: '[a-');
+
+        \set_error_handler(static fn(int $severity, string $message): bool => true);
+
+        try {
+            $result = $schema->parse('abc');
+        } finally {
+            \restore_error_handler();
+        }
+
+        Assert::false($result->ok);
+        Assert::string($result->errors[0]->message)->contains('PCRE engine error');
+        Assert::string($result->errors[0]->message)->contains('Internal error');
+    }
+
+    public function engineFailureIsCheckedAfterEncoding(): void
+    {
+        // Invalid UTF-8 plus an uncompilable pattern: the encoding error
+        // wins, so the engine verdict cannot disagree about bytes.
+        $schema = new StringSchema(pattern: '[a-');
+
+        \set_error_handler(static fn(int $severity, string $message): bool => true);
+
+        try {
+            $result = $schema->parse("\xFF");
+        } finally {
+            \restore_error_handler();
+        }
+
+        Assert::false($result->ok);
+        Assert::same($result->errors[0]->message, 'String is not valid UTF-8');
     }
 }

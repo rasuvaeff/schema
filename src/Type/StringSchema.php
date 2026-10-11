@@ -15,7 +15,10 @@ use Rasuvaeff\Schema\SchemaType;
 
 /**
  * Length-bounded string with an optional full-match pattern. Length is
- * measured in code points (`mb_strlen`), not bytes.
+ * measured in code points (`mb_strlen`), not bytes. The domain is JSON
+ * strings: invalid UTF-8 is rejected up-front, before any length, format
+ * or pattern check, so the code-point length and the pattern engine
+ * never disagree about the input.
  *
  * @extends SchemaType<string>
  *
@@ -134,6 +137,12 @@ final class StringSchema extends SchemaType
             ]);
         }
 
+        if (!\mb_check_encoding($input, 'UTF-8')) {
+            return ParseResult::failed([
+                new ParseError([], 'String is not valid UTF-8'),
+            ]);
+        }
+
         $length = \mb_strlen($input);
 
         if ($this->minLength !== null && $length < $this->minLength) {
@@ -158,7 +167,22 @@ final class StringSchema extends SchemaType
             /** @var non-empty-string $pattern the constructor rejects the empty string */
             $pattern = $this->pattern;
 
-            if (\preg_match('(' . $pattern . ')', $input) !== 1) {
+            $matched = \preg_match('(' . $pattern . ')', $input);
+
+            if ($matched === false) {
+                // Engine failure — compilation failure of a pattern that
+                // bypassed the eager probe, or a runtime limit. Distinct
+                // from a genuine mismatch; the engine's own message carries
+                // no input values.
+                return ParseResult::failed([
+                    new ParseError(
+                        [],
+                        \sprintf('Pattern check failed (PCRE engine error: %s)', \preg_last_error_msg()),
+                    ),
+                ]);
+            }
+
+            if ($matched === 0) {
                 return ParseResult::failed([
                     new ParseError([], 'String does not match the required pattern'),
                 ]);
