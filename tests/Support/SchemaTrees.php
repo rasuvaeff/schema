@@ -25,7 +25,7 @@ final class SchemaTrees
      */
     private const array TRANSFORM_LEAVES = ['transform', 'dateTime'];
 
-    private const array NODES = ['array', 'map', 'object', 'nullable', 'union'];
+    private const array NODES = ['array', 'map', 'object', 'nullable', 'union', 'tuple', 'discriminated'];
 
     /**
      * @return ArbitraryInterface<SchemaInterface<mixed>>
@@ -66,6 +66,11 @@ final class SchemaTrees
                     Gen::draw(self::tree($depth - 1)),
                     Gen::draw(self::tree($depth - 1)),
                 ]),
+                'tuple' => Schema::tuple([
+                    Gen::draw(self::tree($depth - 1)),
+                    Gen::draw(self::tree($depth - 1)),
+                ]),
+                'discriminated' => self::discriminated($depth),
                 default => throw new \LogicException('Unreachable kind branch'),
             };
         });
@@ -120,6 +125,20 @@ final class SchemaTrees
         $min = Gen::draw(Gen::datetime());
 
         return Schema::dateTime()->min($min)->max(Gen::draw(Gen::datetime(min: $min)));
+    }
+
+    private static function discriminated(int $depth): SchemaInterface
+    {
+        $branches = [];
+
+        foreach (['a', 'b'] as $tag) {
+            $branches[$tag] = Schema::object([
+                'kind' => Schema::literal($tag),
+                'payload' => Gen::draw(self::tree($depth - 1)),
+            ]);
+        }
+
+        return Schema::discriminated('kind', $branches);
     }
 
     private static function object(int $depth): ObjectSchema

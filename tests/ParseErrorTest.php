@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\Schema\ParseError;
+use Rasuvaeff\Schema\UnionBranch;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
@@ -59,5 +60,29 @@ final class ParseErrorTest
         Assert::same($deeper->segments, ['tags', 2, 'name']);
         Assert::same($deeper->message, 'message');
         Assert::same($error->segments, [2, 'name']);
+    }
+
+    public function withSegmentPropagatesIntoUnionBranches(): void
+    {
+        $error = new ParseError(['name'], 'Value does not match any of 2 schemas', [
+            new UnionBranch(0, new ParseError([], 'Expected string, got int')),
+            new UnionBranch(1, new ParseError([], 'Expected int, got array')),
+        ]);
+
+        $deeper = $error->withSegment('payload');
+
+        Assert::same($deeper->branches[0]->member, 0);
+        Assert::same($deeper->branches[0]->error->toPath(), '$.payload');
+        Assert::same($deeper->branches[1]->member, 1);
+        Assert::same($deeper->branches[1]->error->toPath(), '$.payload');
+        Assert::same($error->branches[0]->error->toPath(), '$');
+        Assert::same((string) $deeper->branches[0], '[0] $.payload Expected string, got int');
+    }
+
+    public function branchesAreEmptyOutsideUnionFailures(): void
+    {
+        $error = new ParseError(['name'], 'message');
+
+        Assert::same($error->branches, []);
     }
 }

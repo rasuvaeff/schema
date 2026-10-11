@@ -9,11 +9,13 @@ use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\DateTimeSchema;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Rasuvaeff\Schema\Type\MapSchema;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
+use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
 
 /**
@@ -101,6 +103,30 @@ final class Wire
             foreach ($schema->members as $member) {
                 if ($member->parse($value)->ok) {
                     return self::value($member, $value);
+                }
+            }
+
+            return $value;
+        }
+
+        if ($schema instanceof TupleSchema && \is_array($value)) {
+            $converted = [];
+
+            foreach ($schema->elements as $index => $element) {
+                if (\array_key_exists($index, $value)) {
+                    $converted[] = self::value($element, $value[$index]);
+                }
+            }
+
+            return $converted;
+        }
+
+        if ($schema instanceof DiscriminatedSchema) {
+            // Disjoint by construction; the first accepting branch is the
+            // only one that can accept.
+            foreach ($schema->branches as $branch) {
+                if ($branch->parse($value)->ok) {
+                    return self::value($branch, $value);
                 }
             }
 

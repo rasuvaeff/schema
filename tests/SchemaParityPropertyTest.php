@@ -13,6 +13,7 @@ use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\BoolSchema;
 use Rasuvaeff\Schema\Type\DateTimeSchema;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
 use Rasuvaeff\Schema\Type\FloatSchema;
 use Rasuvaeff\Schema\Type\IntSchema;
@@ -22,6 +23,7 @@ use Rasuvaeff\Schema\Type\MapSchema;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
 use Rasuvaeff\Schema\Type\StringSchema;
+use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -46,6 +48,8 @@ use Testo\Test;
 #[Covers(ObjectSchema::class)]
 #[Covers(NullableSchema::class)]
 #[Covers(UnionSchema::class)]
+#[Covers(TupleSchema::class)]
+#[Covers(DiscriminatedSchema::class)]
 final class SchemaParityPropertyTest
 {
     #[Property(runs: 300)]

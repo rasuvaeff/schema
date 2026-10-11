@@ -35,6 +35,11 @@ $schema = Schema::object([
     'labels' => Schema::mapOf(Schema::int()),              // string keys
     'parent' => Schema::nullable(Schema::string()),
     'idOrName' => Schema::union([Schema::int(), Schema::string()]),
+    'event' => Schema::discriminated('type', [        // tag selects the branch
+        'created' => Schema::object(['type' => Schema::literal('created'), 'at' => Schema::dateTime()]),
+        'renamed' => Schema::object(['type' => Schema::literal('renamed'), 'to' => Schema::string()]),
+    ]),
+    'point' => Schema::tuple([Schema::float(), Schema::float()]),
     'bio' => Schema::string()->max(1000)->default(''),     // ≡ optional
     'note' => Schema::string()->optional(),                // key may be absent
 ], additionalProperties: false);
@@ -158,5 +163,19 @@ schema (honest superset) + entry; transform → declared codec.
   `DateTimeImmutable`, `parse()` takes the wire string — the pinned law is
   the wire round trip, not the direct parse
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
+- tuple: fixed-length heterogeneous list; parse demands `array_is_list` and
+  the exact count; export `prefixItems` + `items: false`
+- discriminated: `Schema::discriminated($prop, [tag => ObjectSchema, ...])` —
+  every branch MUST declare `$prop` as a **required literal equal to its key**
+  (checked eagerly); parse: missing tag → `Discriminator property "p" is
+  missing` at `$.p`, unknown tag → `Unknown "p" discriminator value` at `$.p`,
+  branch errors keep their full paths; int and string tags work; export is
+  `oneOf` (disjoint by construction); generator mixes branches via
+  `Gen::frequency`
+- union: first success wins in declaration order; on failure the single error
+  carries **every** branch error in `ParseError->branches`
+  (`list<UnionBranch>`, `->member` + `->error` with its own path), rendered
+  indented in `SchemaException` messages; parents prepend their segment to
+  branch paths too
 - object: `additionalProperties(bool $allow = true)`
 - property modifiers: `optional()`, `default(mixed $validated)`

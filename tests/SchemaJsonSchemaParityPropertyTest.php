@@ -16,10 +16,12 @@ use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\DateTimeSchema;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Rasuvaeff\Schema\Type\MapSchema;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
+use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -118,6 +120,28 @@ final class SchemaJsonSchemaParityPropertyTest
             }
 
             return $object;
+        }
+
+        if ($schema instanceof TupleSchema && \is_array($value)) {
+            $items = [];
+
+            foreach ($schema->elements as $index => $element) {
+                if (\array_key_exists($index, $value)) {
+                    $items[] = self::toJson($element, $value[$index]);
+                }
+            }
+
+            return $items;
+        }
+
+        if ($schema instanceof DiscriminatedSchema) {
+            foreach ($schema->branches as $branch) {
+                if ($branch->parse($value)->ok) {
+                    return self::toJson($branch, $value);
+                }
+            }
+
+            return $value;
         }
 
         if ($schema instanceof NullableSchema) {

@@ -193,6 +193,8 @@ code-point'ах и движок паттернов никогда не расх�
 | `Type\MapSchema` | `Schema::mapOf($v)` | строковые ключи; `minCount`/`maxCount` |
 | `Type\ObjectSchema` | `Schema::object([...])` | свойства `optional`/`default`, `additionalProperties()` |
 | `Type\UnionSchema` | `Schema::union([...])` | первый успех побеждает |
+| `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | тег выбирает ветвь; дизъюнктность по построению (обязательный literal-тег); экспорт `oneOf` |
+| `Type\TupleSchema` | `Schema::tuple([...])` | разнородный список фиксированной длины; экспорт `prefixItems` + `items: false` |
 | `Type\NullableSchema` | `Schema::nullable($s)` | null на уровне значения |
 | `Type\LazySchema` | `Schema::lazy($fn)` | рекурсия, мемоизация |
 | `Combinator\TransformSchema` | `->transform($fn)` | генерация в target-пространстве, shrink в исходном |

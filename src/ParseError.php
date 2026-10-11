@@ -14,25 +14,39 @@ namespace Rasuvaeff\Schema;
  * the outside world. Both are projections; the segments are the source
  * of truth. Root-level errors carry an empty segment list.
  *
+ * A union failure additionally carries every branch error in
+ * {@see $branches} — the member position, the path inside the failing
+ * branch and all of its errors — instead of flattening them into the
+ * message.
+ *
  * @api
  */
 final readonly class ParseError
 {
     /**
      * @param list<int|string> $segments
+     * @param list<UnionBranch> $branches empty outside union failures
      */
     public function __construct(
         public array $segments,
         public string $message,
+        public array $branches = [],
     ) {}
 
     /**
      * The same error one level deeper: a parent (object property, list
-     * index) prepends its segment to errors coming from below.
+     * index) prepends its segment to errors coming from below — and to
+     * the branch errors of a nested union, so their paths stay complete.
      */
     public function withSegment(int|string $segment): self
     {
-        return new self([$segment, ...$this->segments], $this->message);
+        $branches = [];
+
+        foreach ($this->branches as $branch) {
+            $branches[] = $branch->withSegment($segment);
+        }
+
+        return new self([$segment, ...$this->segments], $this->message, $branches);
     }
 
     /**
