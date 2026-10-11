@@ -104,4 +104,55 @@ final class IntSchemaTest
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
     }
+
+    public function positiveMeansAtLeastOne(): void
+    {
+        $schema = Schema::int()->positive();
+
+        Assert::true($schema->parse(1)->ok);
+        Assert::false($schema->parse(0)->ok);
+        Assert::same($schema->parse(0)->errors[0]->message, 'Int must be at least 1, got 0');
+        Assert::false($schema->parse(-5)->ok);
+        Assert::same($schema->min, 1);
+    }
+
+    public function nonNegativeMeansAtLeastZero(): void
+    {
+        $schema = Schema::int()->nonNegative();
+
+        Assert::true($schema->parse(0)->ok);
+        Assert::false($schema->parse(-1)->ok);
+        Assert::same($schema->parse(-1)->errors[0]->message, 'Int must be at least 0, got -1');
+        Assert::same($schema->min, 0);
+    }
+
+    public function shortcutsChainWithMaxAndExportIdenticallyToMin(): void
+    {
+        $positive = Schema::int()->positive()->max(100);
+
+        Assert::same($positive->min, 1);
+        Assert::same($positive->max, 100);
+        Assert::same($positive->toJsonSchema()->schema, ['type' => 'integer', 'minimum' => 1, 'maximum' => 100]);
+
+        $nonNegative = Schema::int()->nonNegative();
+
+        Assert::same($nonNegative->toJsonSchema()->schema, ['type' => 'integer', 'minimum' => 0]);
+    }
+
+    public function generatorHonorsPositive(): void
+    {
+        $schema = Schema::int()->positive();
+
+        $random = new Random(19);
+
+        for ($i = 0; $i < 25; $i++) {
+            Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
+        }
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function positiveConflictsWithALowerMaxEagerly(): void
+    {
+        Schema::int()->max(0)->positive();
+    }
 }

@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A PCRE engine failure during a pattern check (e.g. backtrack limit
   exhausted) is reported as its own error — `Pattern check failed (PCRE
   engine error: …)` — never as a plain pattern mismatch (#11).
+- **BC:** `SchemaException` now extends `\InvalidArgumentException`
+  (invalid input, semantically) instead of `\RuntimeException`. Code
+  catching it as `\RuntimeException` must catch `SchemaException` or
+  `\InvalidArgumentException`; everything else is unchanged (#16). Fits
+  the pre-1.0 SemVer allowance.
+- `IntSchema::positive()` (>= 1) and `nonNegative()` (>= 0) — the named
+  intent of ids and counters, thin wrappers over `min()` with identical
+  parse, generator and JSON Schema export (#17).
 
 ## 0.3.0 — 2026-10-10
 

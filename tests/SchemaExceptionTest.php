@@ -49,4 +49,18 @@ final class SchemaExceptionTest
     {
         Schema::string()->parseOrThrow(42);
     }
+
+    public function isAnInvalidArgumentExceptionSoConsumersNeedNoWrapper(): void
+    {
+        try {
+            Schema::object(['id' => Schema::int()->positive()])->parseOrThrow(['id' => 0]);
+        } catch (SchemaException $invalid) {
+            Assert::true($invalid instanceof \InvalidArgumentException);
+            Assert::string($invalid->getMessage())->contains('$.id');
+
+            return;
+        }
+
+        throw new \LogicException('parseOrThrow was expected to fail');
+    }
 }

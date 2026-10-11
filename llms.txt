@@ -49,6 +49,9 @@ $result->errors;                        // list<ParseError>
 $schema->parseOrThrow($input);          // throws SchemaException (all errors)
 ```
 
+`SchemaException extends InvalidArgumentException` (invalid input, not a
+runtime failure) and carries `list<ParseError>` as `$errors`.
+
 Enum: accepts an instance or the backed value, returns the instance.
 Object: an absent optional key is absent from the result (not null);
 a defaulted key is always present with the normalized default.
@@ -138,7 +141,7 @@ schema (honest superset) + entry; transform → declared codec.
   rejected up-front (`String is not valid UTF-8`); a PCRE engine failure is
   reported as `Pattern check failed (PCRE engine error: …)`, never as a
   plain mismatch
-- int: `min(int)`, `max(int)`
+- int: `min(int)`, `max(int)`, `positive()` (>= 1, thin alias of `min(1)`), `nonNegative()` (>= 0)
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
 - object: `additionalProperties(bool $allow = true)`
 - property modifiers: `optional()`, `default(mixed $validated)`
