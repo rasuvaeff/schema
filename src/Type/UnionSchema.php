@@ -12,6 +12,7 @@ use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\SchemaType;
+use Rasuvaeff\Schema\UnionBranch;
 
 /**
  * First success wins, in declaration order. Overlapping members are an
@@ -40,22 +41,25 @@ final class UnionSchema extends SchemaType
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
-        $summaries = [];
+        $branches = [];
 
-        foreach ($this->members as $member) {
+        foreach ($this->members as $index => $member) {
             $result = $member->parse($input);
 
             if ($result->ok) {
                 return $result;
             }
 
-            $summaries[] = $result->errors[0]->message;
+            foreach ($result->errors as $error) {
+                $branches[] = new UnionBranch($index, $error);
+            }
         }
 
         return ParseResult::failed([
             new ParseError(
                 [],
-                \sprintf('Value does not match any of %d schemas: %s', \count($this->members), \implode('; ', $summaries)),
+                \sprintf('Value does not match any of %d schemas', \count($this->members)),
+                $branches,
             ),
         ]);
     }

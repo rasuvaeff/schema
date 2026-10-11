@@ -35,6 +35,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Format::DateTime` strictness aligned with `Schema::dateTime()`:
   rolled-over components (`25:00`) and trailing data are now rejected
   instead of silently rolling over (#15).
+- `Schema::discriminated('kind', [...])` — a tagged union: the
+  discriminator property selects the branch (checked eagerly as a
+  required literal equal to the branch key, so branches are disjoint by
+  construction), an unknown or missing tag is its own error at the tag's
+  path, and errors inside the branch keep their full paths. Export is
+  `oneOf`. Int and string tags both work (#9).
+- `Schema::tuple([...])` — a fixed-length heterogeneous list
+  (`prefixItems` + `items: false`), errors carrying their element index
+  (`$[1]`) (#9).
+- `UnionSchema` failures now keep structured branch errors:
+  `ParseError->branches` (`list<UnionBranch>` with the member index and
+  the branch's own error paths) instead of a flattened first-error
+  summary; `SchemaException` renders them indented, and parents prepend
+  their segment to branch paths (#10).
 
 ## 0.3.0 — 2026-10-10
 

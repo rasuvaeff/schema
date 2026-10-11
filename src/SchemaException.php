@@ -38,6 +38,10 @@ final class SchemaException extends \InvalidArgumentException
 
         foreach ($errors as $error) {
             $lines[] = $error->toPath() . ' ' . $error->message;
+
+            foreach ($error->branches as $branch) {
+                $lines[] = '  ' . (string) $branch;
+            }
         }
 
         return \implode("\n", $lines);

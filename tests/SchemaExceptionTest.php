@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaException;
+use Rasuvaeff\Schema\UnionBranch;
 use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;
@@ -62,5 +64,26 @@ final class SchemaExceptionTest
         }
 
         throw new \LogicException('parseOrThrow was expected to fail');
+    }
+
+    public function unionBranchesRenderIndented(): void
+    {
+        $error = new ParseError(
+            ['payload'],
+            'Value does not match any of 2 schemas',
+            [
+                new UnionBranch(0, new ParseError(['payload', 'name'], 'Expected string, got int')),
+                new UnionBranch(1, new ParseError(['payload'], 'Expected int, got array')),
+            ],
+        );
+
+        $exception = new SchemaException([$error]);
+
+        Assert::same(
+            $exception->getMessage(),
+            "$.payload Value does not match any of 2 schemas\n"
+            . "  [0] $.payload.name Expected string, got int\n"
+            . '  [1] $.payload Expected int, got array',
+        );
     }
 }

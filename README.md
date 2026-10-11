@@ -194,6 +194,8 @@ The `Schema` facade is the single entry point; every factory returns a
 | `Type\MapSchema` | `Schema::mapOf($v)` | string keys; `minCount`/`maxCount` |
 | `Type\ObjectSchema` | `Schema::object([...])` | `optional`/`default` properties, `additionalProperties()` |
 | `Type\UnionSchema` | `Schema::union([...])` | first success wins |
+| `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | tag selects the branch; disjoint by construction (required literal tag); export `oneOf` |
+| `Type\TupleSchema` | `Schema::tuple([...])` | fixed-length heterogeneous list; export `prefixItems` + `items: false` |
 | `Type\NullableSchema` | `Schema::nullable($s)` | value-level null |
 | `Type\LazySchema` | `Schema::lazy($fn)` | recursion, memoized |
 | `Combinator\TransformSchema` | `->transform($fn)` | target-space generation, source-space shrinking |

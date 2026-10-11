@@ -8,6 +8,7 @@ use Closure;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\BoolSchema;
 use Rasuvaeff\Schema\Type\DateTimeSchema;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
 use Rasuvaeff\Schema\Type\FloatSchema;
 use Rasuvaeff\Schema\Type\IntSchema;
@@ -19,6 +20,7 @@ use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectProperty;
 use Rasuvaeff\Schema\Type\ObjectSchema;
 use Rasuvaeff\Schema\Type\StringSchema;
+use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
 
 /**
@@ -153,6 +155,26 @@ final class Schema
     public static function union(array $members): UnionSchema
     {
         return new UnionSchema($members);
+    }
+
+    /**
+     * @param string $property the discriminator key, e.g. `'type'`
+     * @param array<int|string, ObjectSchema> $branches tag → branch; each
+     *     branch must declare `$property` as a required literal equal to
+     *     its key — checked eagerly
+     */
+    public static function discriminated(string $property, array $branches): DiscriminatedSchema
+    {
+        return new DiscriminatedSchema($property, $branches);
+    }
+
+    /**
+     * @param list<SchemaInterface> $elements a fixed-length list;
+     *     position i is validated by `$elements[i]`
+     */
+    public static function tuple(array $elements): TupleSchema
+    {
+        return new TupleSchema($elements);
     }
 
     /**
