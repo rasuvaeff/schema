@@ -222,7 +222,10 @@ RoundTrip::assertConsumerRoundTrip(                // your hydrate/wire pair
 `assertConsumerRoundTrip()` checks that `hydrate($payload)` succeeds, that
 the schema's `toWire($payload)` equals your wire form of the hydrated object,
 and that wire → hydrate → wire is lossless. Failure messages carry the stage
-and value kinds only, never the values.
+and value kinds only, never the values. `assertWireRoundTrip()` needs an
+invertible schema: a transform without a `wire` inverse, or a union whose
+members overlap (first success wins, so the wire form may re-parse through
+another member), breaks it by construction — prefer `Schema::discriminated()`.
 
 ## Security
 

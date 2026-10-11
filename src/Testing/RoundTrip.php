@@ -47,7 +47,10 @@ final class RoundTrip
      * projection of the reparsed value is the same wire again — no loss
      * in either direction. This is the law a decode-style type
      * (`Schema::dateTime()`, a bare transform) pins instead of the
-     * direct parse.
+     * direct parse. It needs an invertible tree: a transform without a
+     * `wire` inverse, or a union whose members overlap (first success
+     * wins, so the wire form may re-parse through another member), is
+     * outside the law by construction — use a discriminated union.
      */
     public static function assertWireRoundTrip(SchemaInterface $schema, mixed $value): void
     {

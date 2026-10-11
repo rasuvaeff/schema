@@ -69,7 +69,7 @@ final class SchemaParityPropertyTest
     #[Property(runs: 300)]
     public function wireRoundTripIsLossless(int $depth): void
     {
-        $schema = Gen::draw(SchemaTrees::tree($depth, withTransforms: true, invertibleTransforms: true));
+        $schema = Gen::draw(SchemaTrees::tree($depth, withTransforms: true, invertibleTransforms: true, withUnions: false));
         $value = Gen::draw($schema->arbitrary());
 
         Classify::when(\is_array($value), 'structured');

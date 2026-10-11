@@ -206,6 +206,7 @@ schema (honest superset) + entry; transform → declared codec.
 ```php
 RoundTrip::assertParses($schema, $value);         // law 1: generated parses
 RoundTrip::assertWireRoundTrip($schema, $value);  // toWire → parse → toWire lossless
+// (needs an invertible tree: no wire-less transform, no overlapping union)
 RoundTrip::assertConsumerRoundTrip($schema, $payload, $hydrate, $wire);
 // hydrate($payload) succeeds; $schema->toWire($payload) === $wire($object);
 // wire → hydrate → wire lossless
