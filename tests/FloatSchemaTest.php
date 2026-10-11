@@ -212,4 +212,75 @@ final class FloatSchemaTest
         Assert::false(Schema::float()->allowInt);
         Assert::true(Schema::float()->allowInt()->parse(3)->ok);
     }
+
+    #[DataProvider('coercionProvider')]
+    public function coerceNormalizesCanonicalNumberStrings(string $input, float $expected): void
+    {
+        $result = Schema::float()->coerce()->parse($input);
+
+        Assert::true($result->ok);
+        Assert::same($result->value, $expected);
+    }
+
+    public static function coercionProvider(): iterable
+    {
+        yield 'fraction' => ['1.5', 1.5];
+
+        yield 'whole' => ['2', 2.0];
+
+        yield 'negative exponent' => ['-3e2', -300.0];
+
+        yield 'exponent with sign' => ['1.5e+2', 150.0];
+    }
+
+    #[DataProvider('coercionRejectionProvider')]
+    public function coerceRejectsNonCanonicalNumberStrings(string $input): void
+    {
+        $result = Schema::float()->coerce()->parse($input);
+
+        Assert::false($result->ok);
+        Assert::same($result->errors[0]->message, 'Expected float, got string');
+    }
+
+    public static function coercionRejectionProvider(): iterable
+    {
+        yield 'leading zeros' => ['01'];
+
+        yield 'whitespace' => [' 1'];
+
+        yield 'hex' => ['0x1A'];
+
+        yield 'infinity' => ['INF'];
+
+        yield 'not a number' => ['half'];
+    }
+
+    public function coerceAppliesTheBoundsAfterNormalization(): void
+    {
+        $schema = Schema::float()->min(0.0)->max(1.0)->coerce();
+
+        Assert::true($schema->parse('0.5')->ok);
+        Assert::same(
+            $schema->parse('1.5')->errors[0]->message,
+            'Float must be at most 1, got 1.5',
+        );
+    }
+
+    public function coerceCombinesWithAllowInt(): void
+    {
+        $schema = Schema::float()->allowInt()->coerce();
+
+        Assert::true($schema->parse(5)->ok);
+        Assert::same($schema->parse('2.5')->value, 2.5);
+        Assert::same($schema->parse('2')->value, 2.0);
+    }
+
+    public function coerceIsRecordedInTheExport(): void
+    {
+        $export = Schema::float()->coerce()->toJsonSchema();
+
+        Assert::same($export->schema, ['type' => 'number']);
+        Assert::same($export->nonRepresentable[0]->construct, 'coerce');
+        Assert::same(Schema::float()->toJsonSchema()->nonRepresentable, []);
+    }
 }

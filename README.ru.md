@@ -182,16 +182,16 @@ code-point'ах и движок паттернов никогда не расх�
 | Тип | Фабрика | Примечания |
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format`; отвергает невалидный UTF-8 |
-| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
-| `Type\FloatSchema` | `Schema::float()` | только finite (NaN/INF отвергаются); `min`/`max`, `allowInt()`; экспорт `type: number` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0), `coerce()` |
+| `Type\FloatSchema` | `Schema::float()` | только finite (NaN/INF отвергаются); `min`/`max`, `allowInt()`, `coerce()`; экспорт `type: number` |
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 в wire ↔ `DateTimeImmutable` в домене; инклюзивные `min`/`max` |
-| `Type\BoolSchema` | `Schema::bool()` | |
+| `Type\BoolSchema` | `Schema::bool()` | `coerce()` (`"true"`/`"1"` → `true`) |
 | `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; инстанс или backed-значение на входе, инстанс на выходе |
 | `Type\JsonValueSchema` | `Schema::json()` | домен `json_decode` |
 | `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
 | `Type\MapSchema` | `Schema::mapOf($v)` | строковые ключи; `minCount`/`maxCount` |
-| `Type\ObjectSchema` | `Schema::object([...])` | свойства `optional`/`default`, `additionalProperties()` |
+| `Type\ObjectSchema` | `Schema::object([...])` | свойства `optional`/`default`, `additionalProperties()`, `strip()` |
 | `Type\UnionSchema` | `Schema::union([...])` | первый успех побеждает |
 | `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | тег выбирает ветвь; дизъюнктность по построению (обязательный literal-тег); экспорт `oneOf` |
 | `Type\TupleSchema` | `Schema::tuple([...])` | разнородный список фиксированной длины; экспорт `prefixItems` + `items: false` |

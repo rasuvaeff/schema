@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Type;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -21,9 +22,18 @@ use Rasuvaeff\Schema\SchemaType;
  */
 final class IntSchema extends SchemaType
 {
+    /**
+     * Canonical JSON integer strings only: an optional minus, no leading
+     * zeros, no plus, no whitespace — and no silent overflow: a string
+     * outside the int range fails the round trip through `(int)` and is
+     * rejected.
+     */
+    private const string INT_STRING = '(^-?(0|[1-9][0-9]*)\z)';
+
     public function __construct(
         public readonly ?int $min = null,
         public readonly ?int $max = null,
+        public readonly bool $coerce = false,
     ) {}
 
     public function min(int $value): self
@@ -32,7 +42,7 @@ final class IntSchema extends SchemaType
             throw new \InvalidArgumentException('Minimum must not exceed the maximum');
         }
 
-        return new self(min: $value, max: $this->max);
+        return new self(min: $value, max: $this->max, coerce: $this->coerce);
     }
 
     public function max(int $value): self
@@ -41,7 +51,20 @@ final class IntSchema extends SchemaType
             throw new \InvalidArgumentException('Maximum must not be below the minimum');
         }
 
-        return new self(min: $this->min, max: $value);
+        return new self(min: $this->min, max: $value, coerce: $this->coerce);
+    }
+
+    /**
+     * Accept canonical integer strings too (`"5"`, `"-3"`) — the
+     * query-string and form world — and normalize them to int. Bounds
+     * apply after the coercion; the generator's domain stays int, and
+     * the export keeps `type: integer` with a `NonRepresentable` `coerce`
+     * entry: the fragment cannot say "strings carrying an integer are
+     * fine too".
+     */
+    public function coerce(): self
+    {
+        return new self(min: $this->min, max: $this->max, coerce: true);
     }
 
     /**
@@ -65,6 +88,14 @@ final class IntSchema extends SchemaType
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
+        if (\is_string($input) && $this->coerce && \preg_match(self::INT_STRING, $input) === 1) {
+            $coerced = (int) $input;
+
+            if ((string) $coerced === $input) {
+                $input = $coerced;
+            }
+        }
+
         if (!\is_int($input)) {
             return ParseResult::failed([
                 new ParseError([], \sprintf('Expected int, got %s', \get_debug_type($input))),
@@ -122,6 +153,13 @@ final class IntSchema extends SchemaType
             $schema['maximum'] = $this->max;
         }
 
-        return JsonSchemaExport::of($schema);
+        if (!$this->coerce) {
+            return JsonSchemaExport::of($schema);
+        }
+
+        // The fragment describes the canonical wire form; the
+        // string-source leniency of parse is not representable — the
+        // refine precedent: an entry, never a strict-mode throw.
+        return JsonSchemaExport::of($schema, [new NonRepresentable([], 'coerce')]);
     }
 }

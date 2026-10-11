@@ -148,9 +148,13 @@ schema (honest superset) + entry; transform → declared codec.
   rejected up-front (`String is not valid UTF-8`); a PCRE engine failure is
   reported as `Pattern check failed (PCRE engine error: …)`, never as a
   plain mismatch
-- int: `min(int)`, `max(int)`, `positive()` (>= 1, thin alias of `min(1)`), `nonNegative()` (>= 0)
+- int: `min(int)`, `max(int)`, `positive()` (>= 1, thin alias of `min(1)`), `nonNegative()` (>= 0),
+  `coerce()` (canonical int strings `"5"`/`"-3"` → int; no leading zeros, no `+`, no
+  whitespace, no overflow; bounds apply after coercion; export keeps `type: integer`
+  + `NonRepresentable` `coerce` entry)
 - float: `min(float)`, `max(float)`, `allowInt()` (JSON `1` accepted, normalized
-  to `1.0`); NaN/INF rejected by parse and by bound setters; generator is
+  to `1.0`), `coerce()` (canonical JSON number strings `"1.5"`/`"2"`/`"-3e2"` →
+  float); NaN/INF rejected by parse and by bound setters; generator is
   `Gen::floatBetween` over `[min, max)` (both parse bounds inclusive — parity
   holds); export `type: number` with `minimum`/`maximum`
 - dateTime: `min(DateTimeImmutable)`, `max(DateTimeImmutable)`; wire form is
@@ -177,5 +181,10 @@ schema (honest superset) + entry; transform → declared codec.
   (`list<UnionBranch>`, `->member` + `->error` with its own path), rendered
   indented in `SchemaException` messages; parents prepend their segment to
   branch paths too
-- object: `additionalProperties(bool $allow = true)`
+- bool: `coerce()` (`"true"`/`"1"` → true, `"false"`/`"0"` → false; case-sensitive;
+  anything else rejected)
+- object: `additionalProperties(bool $allow = true)`, `strip()` (drop unknown
+  keys silently — third mode, mutually exclusive with additionalProperties;
+  export stays `additionalProperties: true` + `NonRepresentable` `strip` entry;
+  generator still emits only known keys)
 - property modifiers: `optional()`, `default(mixed $validated)`

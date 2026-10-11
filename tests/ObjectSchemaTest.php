@@ -110,7 +110,7 @@ final class ObjectSchemaTest
         $result = $schema->parse(['name' => 'ada', 'extra' => 'kept']);
 
         Assert::true($result->ok);
-        Assert::same($result->value, ['name' => 'ada']);
+        Assert::same($result->value, ['name' => 'ada', 'extra' => 'kept']);
     }
 
     #[ExpectException(\InvalidArgumentException::class)]
@@ -160,5 +160,76 @@ final class ObjectSchemaTest
             Assert::true($result->ok, \sprintf('value #%d failed to parse', $i));
             Assert::same(\array_key_exists('role', $result->value), expected: true);
         }
+    }
+
+    public function stripDropsUnknownKeysAndKeepsTheKnownOnes(): void
+    {
+        $schema = Schema::object([
+            'name' => Schema::string()->min(1),
+        ])->strip();
+
+        $result = $schema->parse(['name' => 'ann', 'unknown' => 'x', 'another' => 42]);
+
+        Assert::true($result->ok);
+        Assert::same($result->value, ['name' => 'ann']);
+    }
+
+    public function stripStillReportsErrorsOfTheKnownKeys(): void
+    {
+        $schema = Schema::object([
+            'name' => Schema::string()->min(1),
+        ])->strip();
+
+        $result = $schema->parse(['name' => '', 'unknown' => 'x']);
+
+        Assert::false($result->ok);
+        Assert::same(\count($result->errors), 1);
+        Assert::same($result->errors[0]->toPath(), '$.name');
+    }
+
+    public function additionalPropertiesAfterStripSwitchesTheModeBack(): void
+    {
+        $passthrough = Schema::object(['name' => Schema::string()])->strip()->additionalProperties();
+
+        Assert::true($passthrough->additionalProperties);
+        Assert::false($passthrough->strip);
+        Assert::true($passthrough->parse(['name' => 'ann', 'extra' => 1])->ok);
+        Assert::same($passthrough->parse(['name' => 'ann', 'extra' => 1])->value['extra'], 1);
+
+        $strict = Schema::object(['name' => Schema::string()])->strip()->additionalProperties(allow: false);
+
+        Assert::false($strict->additionalProperties);
+        Assert::false($strict->strip);
+        Assert::false($strict->parse(['name' => 'ann', 'extra' => 1])->ok);
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function stripAndAdditionalPropertiesAreMutuallyExclusive(): void
+    {
+        new ObjectSchema(['name' => Schema::string()], additionalProperties: true, strip: true);
+    }
+
+    public function stripExportsAdditionalPropertiesTrueAndRecordsTheDrop(): void
+    {
+        $export = Schema::object(['name' => Schema::string()])->strip()->toJsonSchema();
+
+        Assert::same($export->schema['additionalProperties'], expected: true);
+        Assert::same($export->nonRepresentable[0]->construct, 'strip');
+        Assert::same($export->nonRepresentable[0]->toPath(), '$');
+    }
+
+    public function stripWireCarriesOnlyKnownKeys(): void
+    {
+        $schema = Schema::object(['name' => Schema::string()])->strip();
+
+        Assert::same($schema->toWire(['name' => 'ann']), ['name' => 'ann']);
+    }
+
+    public function stripIsVisibleOnTheInstance(): void
+    {
+        $schema = Schema::object(['name' => Schema::string()])->strip();
+
+        Assert::true($schema->strip);
+        Assert::false($schema->additionalProperties);
     }
 }

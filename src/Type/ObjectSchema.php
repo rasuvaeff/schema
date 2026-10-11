@@ -9,6 +9,7 @@ use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -17,8 +18,9 @@ use Rasuvaeff\Schema\SchemaType;
 
 /**
  * A fixed shape: declared properties, each required, optional or
- * defaulted; unknown keys are rejected unless `additionalProperties()`
- * allows them.
+ * defaulted; and one of three unknown-key modes — rejected by default,
+ * passed through into the result by `additionalProperties()`, or
+ * dropped silently by `strip()`.
  *
  * Parse semantics pinned by the package docs: an absent optional key is
  * **absent from the result** (not null); a defaulted key is always
@@ -37,11 +39,21 @@ final class ObjectSchema extends SchemaType
      * @param array<string, SchemaInterface> $properties bare schemas are
      *     required; `->optional()`/`->default()` wrap into
      *     {@see ObjectProperty}
+     * @param bool $additionalProperties allow unknown keys through
+     *     (default: reject them)
+     * @param bool $strip drop unknown keys silently instead of rejecting
+     *     them — the third mode, mutually exclusive with
+     *     `$additionalProperties`
      */
     public function __construct(
         array $properties,
         public readonly bool $additionalProperties = false,
+        public readonly bool $strip = false,
     ) {
+        if ($additionalProperties && $strip) {
+            throw new \InvalidArgumentException('Strip and additionalProperties are mutually exclusive — pick one unknown-key mode');
+        }
+
         $normalized = [];
 
         foreach ($properties as $name => $property) {
@@ -59,7 +71,19 @@ final class ObjectSchema extends SchemaType
 
     public function additionalProperties(bool $allow = true): self
     {
-        return new self(properties: $this->properties, additionalProperties: $allow);
+        return new self(properties: $this->properties, additionalProperties: $allow, strip: false);
+    }
+
+    /**
+     * The third unknown-key mode: drop them and keep the known ones —
+     * the shape for parsing external payloads you only trust partially.
+     * Mutually exclusive with `additionalProperties()`; the export keeps
+     * `additionalProperties: true` (validators accept what the parser
+     * strips) and records the drop as a `NonRepresentable` entry.
+     */
+    public function strip(): self
+    {
+        return new self(properties: $this->properties, additionalProperties: false, strip: true);
     }
 
     #[\Override]
@@ -93,7 +117,18 @@ final class ObjectSchema extends SchemaType
             }
         }
 
-        if (!$this->additionalProperties) {
+        if ($this->additionalProperties) {
+            // Pass-through: tolerated unknown keys stay in the result —
+            // the mode for maps you round-trip. Strip drops them below
+            // by never reaching this branch.
+            foreach ($input as $key => $item) {
+                if (!\array_key_exists($key, $this->properties)) {
+                    $values[(string) $key] = $item;
+                }
+            }
+        }
+
+        if (!$this->additionalProperties && !$this->strip) {
             foreach (\array_keys($input) as $key) {
                 if (!\array_key_exists($key, $this->properties)) {
                     $errors[] = new ParseError(
@@ -207,11 +242,18 @@ final class ObjectSchema extends SchemaType
         $schema = [
             'type' => 'object',
             'properties' => $properties,
-            'additionalProperties' => $this->additionalProperties,
+            'additionalProperties' => $this->additionalProperties || $this->strip,
         ];
 
         if ($required !== []) {
             $schema['required'] = $required;
+        }
+
+        if ($this->strip) {
+            // The fragment is an honest superset: a validator accepts
+            // documents whose extra keys the parser silently drops. The
+            // drop itself is not expressible — recorded, not thrown.
+            $nonRepresentable[] = new NonRepresentable([], 'strip');
         }
 
         return JsonSchemaExport::of($schema, $nonRepresentable);
