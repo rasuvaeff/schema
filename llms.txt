@@ -142,7 +142,10 @@ schema (honest superset) + entry; transform → declared codec.
 
 - string: `min(int)`, `max(int)`, `regex(string $patternWithoutDelimiters)`
   (the `Gen::stringMatching` convention; eagerly probed for generatability —
-  `\z` is rejected, use `$`), `format(Format::Email|Uuid|Url|DateTime|Ipv4)`
+  `\z` is rejected, use `$`), `regexUnchecked(string $pattern, ArbitraryInterface
+  $generator)` (opt-out for patterns outside the subset: the caller's generator
+  must produce matches — build them constructively; export adds a
+  `NonRepresentable` `regexUnchecked` entry), `format(Format::Email|Uuid|Url|DateTime|Ipv4)`
   (format and pattern are mutually exclusive; a format + tight bounds can
   empty the value set — generation then fails loudly). Invalid UTF-8 is
   rejected up-front (`String is not valid UTF-8`); a PCRE engine failure is
@@ -186,5 +189,24 @@ schema (honest superset) + entry; transform → declared codec.
 - object: `additionalProperties(bool $allow = true)`, `strip()` (drop unknown
   keys silently — third mode, mutually exclusive with additionalProperties;
   export stays `additionalProperties: true` + `NonRepresentable` `strip` entry;
-  generator still emits only known keys)
+  generator still emits only known keys), `into(Dto::class)` → `IntoSchema`:
+  parsed properties go to the DTO constructor as named arguments (after
+  defaults/strip); constructor exception → parse error with class names only;
+  export and `toWire()` (over `get_object_vars()`) stay the object's; a DTO
+  invariant stricter than the schema breaks the generator
+- dateTime generator emits millisecond-precision moments within the bounds
+  aligned inwards; bounds inside one millisecond are rejected at construction
 - property modifiers: `optional()`, `default(mixed $validated)`
+
+### Testing helpers
+
+`Rasuvaeff\Schema\Testing\RoundTrip` (framework-agnostic, throws
+`RoundTripException` with stage + value kinds, never values):
+
+```php
+RoundTrip::assertParses($schema, $value);         // law 1: generated parses
+RoundTrip::assertWireRoundTrip($schema, $value);  // toWire → parse → toWire lossless
+RoundTrip::assertConsumerRoundTrip($schema, $payload, $hydrate, $wire);
+// hydrate($payload) succeeds; $schema->toWire($payload) === $wire($object);
+// wire → hydrate → wire lossless
+```

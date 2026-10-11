@@ -36,7 +36,13 @@ final class DateTimeSchema extends SchemaType
     public function __construct(
         public readonly ?\DateTimeImmutable $min = null,
         public readonly ?\DateTimeImmutable $max = null,
-    ) {}
+    ) {
+        // The wire carries milliseconds, so only millisecond-precision
+        // moments can ever parse: bounds inside one millisecond admit none.
+        if ($min instanceof \DateTimeImmutable && $max instanceof \DateTimeImmutable && $this->ceilMs($min) > self::floorMs($max)) {
+            throw new \InvalidArgumentException('Bounds admit no millisecond-precision date-time');
+        }
+    }
 
     public function min(\DateTimeImmutable $value): self
     {
@@ -113,7 +119,35 @@ final class DateTimeSchema extends SchemaType
     #[\Override]
     public function arbitrary(): ArbitraryInterface
     {
-        return Gen::datetime($this->min, $this->max);
+        // Generated moments are millisecond-precision — exactly what the
+        // wire form keeps — inside the bounds aligned inwards, so a value
+        // at a sub-millisecond bound never falls outside it after toWire().
+        return Gen::map(
+            Gen::datetime(
+                $this->min instanceof \DateTimeImmutable ? $this->ceilMs($this->min) : null,
+                $this->max instanceof \DateTimeImmutable ? self::floorMs($this->max) : null,
+            ),
+            static fn(\DateTimeImmutable $value): \DateTimeImmutable => self::floorMs($value),
+        );
+    }
+
+    private static function floorMs(\DateTimeImmutable $value): \DateTimeImmutable
+    {
+        $microseconds = (int) $value->format('u');
+
+        return $value->setTime(
+            (int) $value->format('G'),
+            (int) $value->format('i'),
+            (int) $value->format('s'),
+            $microseconds - $microseconds % 1000,
+        );
+    }
+
+    private function ceilMs(\DateTimeImmutable $value): \DateTimeImmutable
+    {
+        $floor = self::floorMs($value);
+
+        return $floor == $value ? $floor : $floor->modify('+1000 usec');
     }
 
     #[\Override]

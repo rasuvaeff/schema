@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\StringSchema;
@@ -109,6 +110,76 @@ final class StringSchemaTest
     public function rejectsAPatternTheGeneratorCannotCompile(): void
     {
         Schema::string()->regex('^[a-z]+\z');
+    }
+
+    public function regexUncheckedAcceptsPatternsOutsideTheSubset(): void
+    {
+        $pattern = '^a+\z';
+        $generator = Gen::map(Gen::intBetween(1, 8), static fn(int $length): string => \str_repeat('a', $length));
+
+        $schema = Schema::string()->regexUnchecked($pattern, $generator);
+
+        Assert::same($schema->pattern, $pattern);
+
+        $random = new Random(71);
+
+        for ($i = 0; $i < 25; $i++) {
+            $value = $schema->arbitrary()->generate($random)->value;
+
+            Assert::true($schema->parse($value)->ok, \sprintf('value #%d failed to parse', $i));
+        }
+    }
+
+    public function regexUncheckedStillEnforcesThePatternOnParse(): void
+    {
+        $schema = Schema::string()->regexUnchecked('^a+\z', Gen::map(Gen::intBetween(1, 8), static fn(int $length): string => \str_repeat('a', $length)));
+
+        Assert::false($schema->parse('bbb')->ok);
+        Assert::same($schema->parse('bbb')->errors[0]->message, 'String does not match the required pattern');
+        Assert::same($schema->parse('aaa')->ok, expected: true);
+    }
+
+    public function regexUncheckedKeepsLengthBounds(): void
+    {
+        $schema = Schema::string()->regexUnchecked('^a*\z', Gen::map(Gen::intBetween(0, 8), static fn(int $length): string => \str_repeat('a', $length)))->min(2)->max(5);
+
+        $random = new Random(73);
+
+        for ($i = 0; $i < 25; $i++) {
+            $value = $schema->arbitrary()->generate($random)->value;
+
+            Assert::true($schema->parse($value)->ok, \sprintf('value #%d failed to parse', $i));
+        }
+    }
+
+    public function regexUncheckedExportsThePatternAsIs(): void
+    {
+        $schema = Schema::string()->regexUnchecked('^a+\z', Gen::map(Gen::intBetween(1, 8), static fn(int $length): string => \str_repeat('a', $length)));
+
+        $export = $schema->toJsonSchema();
+
+        Assert::same($export->schema, ['type' => 'string', 'pattern' => '^a+\z']);
+        Assert::same(\count($export->nonRepresentable), 1);
+        Assert::same($export->nonRepresentable[0]->construct, 'regexUnchecked');
+        Assert::same(Schema::string()->regex('^a+$')->toJsonSchema()->nonRepresentable, []);
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function regexUncheckedStillRejectsInvalidPcre(): void
+    {
+        Schema::string()->regexUnchecked('[a-', Gen::string());
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function regexUncheckedRejectsAnEmptyPattern(): void
+    {
+        Schema::string()->regexUnchecked('', Gen::string());
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function aPatternGeneratorWithoutAPatternIsRejected(): void
+    {
+        new StringSchema(patternGenerator: Gen::string());
     }
 
     public function generatedValuesAlwaysParse(): void
