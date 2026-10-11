@@ -17,9 +17,13 @@ use Rasuvaeff\Schema\Type\ObjectSchema;
  */
 final class SchemaTrees
 {
-    private const array LEAVES = ['string', 'int', 'bool', 'literal', 'enum', 'json', 'refine'];
+    private const array LEAVES = ['string', 'int', 'float', 'bool', 'literal', 'enum', 'json', 'refine'];
 
-    private const array TRANSFORM_LEAVES = ['transform'];
+    /**
+     * Leaves whose generator lives in the target space (like a bare
+     * transform's): law 1 does not apply to them, law 2 does.
+     */
+    private const array TRANSFORM_LEAVES = ['transform', 'dateTime'];
 
     private const array NODES = ['array', 'map', 'object', 'nullable', 'union'];
 
@@ -38,6 +42,8 @@ final class SchemaTrees
             return match ($kind) {
                 'string' => self::string(),
                 'int' => self::int(),
+                'float' => self::float(),
+                'dateTime' => self::dateTime(),
                 'bool' => Schema::bool(),
                 'literal' => Schema::literal(Gen::draw(Gen::elements(['a', 'b', 1, true]))),
                 'enum' => Schema::enum(Gen::draw(Gen::elements([Role::class, Suit::class]))),
@@ -89,6 +95,31 @@ final class SchemaTrees
         $max = Gen::draw(Gen::intBetween(0, 5));
 
         return Schema::int()->min($min)->max($max);
+    }
+
+    private static function float(): SchemaInterface
+    {
+        if (Gen::draw(Gen::bool())) {
+            return Schema::float();
+        }
+
+        // min <= 0 <= max by construction, so the pair is always valid;
+        // allowInt occasionally rides along for constructor coverage.
+        $min = Gen::draw(Gen::floatBetween(-5.0, 0.0));
+        $max = Gen::draw(Gen::floatBetween(0.0, 5.0));
+
+        return Schema::float()->min($min)->max($max)->allowInt();
+    }
+
+    private static function dateTime(): SchemaInterface
+    {
+        if (Gen::draw(Gen::bool())) {
+            return Schema::dateTime();
+        }
+
+        $min = Gen::draw(Gen::datetime());
+
+        return Schema::dateTime()->min($min)->max(Gen::draw(Gen::datetime(min: $min)));
     }
 
     private static function object(int $depth): ObjectSchema

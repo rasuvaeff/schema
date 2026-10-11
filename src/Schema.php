@@ -7,7 +7,9 @@ namespace Rasuvaeff\Schema;
 use Closure;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\BoolSchema;
+use Rasuvaeff\Schema\Type\DateTimeSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
+use Rasuvaeff\Schema\Type\FloatSchema;
 use Rasuvaeff\Schema\Type\IntSchema;
 use Rasuvaeff\Schema\Type\JsonValueSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
@@ -50,6 +52,25 @@ final class Schema
     public static function int(): IntSchema
     {
         return new IntSchema();
+    }
+
+    /**
+     * Finite float with optional inclusive bounds; NaN/INF rejected,
+     * `allowInt()` widens parse to whole numbers (normalized to float).
+     * JSON Schema export: `type: number`.
+     */
+    public static function float(): FloatSchema
+    {
+        return new FloatSchema();
+    }
+
+    /**
+     * RFC 3339 string on the wire, `DateTimeImmutable` in the PHP domain,
+     * with optional inclusive `min()`/`max()` bounds.
+     */
+    public static function dateTime(): DateTimeSchema
+    {
+        return new DateTimeSchema();
     }
 
     public static function bool(): BoolSchema

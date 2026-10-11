@@ -11,9 +11,11 @@ use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Property;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
+use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
+use Rasuvaeff\Schema\Type\DateTimeSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Rasuvaeff\Schema\Type\MapSchema;
 use Rasuvaeff\Schema\Type\NullableSchema;
@@ -82,6 +84,10 @@ final class SchemaJsonSchemaParityPropertyTest
      */
     private static function toJson(SchemaInterface $schema, mixed $value): mixed
     {
+        if ($schema instanceof DateTimeSchema && $value instanceof \DateTimeImmutable) {
+            return $value->format(\DATE_RFC3339_EXTENDED);
+        }
+
         if ($schema instanceof ArraySchema && \is_array($value)) {
             $items = [];
 

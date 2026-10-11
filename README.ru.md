@@ -59,6 +59,8 @@ $user = Schema::object([
     'tags' => Schema::arrayOf(Schema::string()->min(1))->maxCount(20),
     'bio' => Schema::string()->max(1000)->default(''),   // default ≡ optional
     'meta' => Schema::mapOf(Schema::json())->optional(),
+    'score' => Schema::float()->min(0.0)->max(1.0),       // только finite-числа
+    'created_at' => Schema::dateTime(),                   // RFC 3339 на входе, DateTimeImmutable на выходе
 ]);
 ```
 
@@ -181,6 +183,8 @@ code-point'ах и движок паттернов никогда не расх�
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format`; отвергает невалидный UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
+| `Type\FloatSchema` | `Schema::float()` | только finite (NaN/INF отвергаются); `min`/`max`, `allowInt()`; экспорт `type: number` |
+| `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 в wire ↔ `DateTimeImmutable` в домене; инклюзивные `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; инстанс или backed-значение на входе, инстанс на выходе |

@@ -76,6 +76,16 @@ final class FormatTest
             'yesterday, probably',
         ];
 
+        yield 'date-time rolled-over hour' => [
+            Format::DateTime,
+            '2026-10-11T25:00:00.000+00:00',
+        ];
+
+        yield 'date-time trailing data' => [
+            Format::DateTime,
+            '2026-10-11T10:15:30.123+00:00x',
+        ];
+
         yield 'ipv4' => [
             Format::Ipv4,
             '999.999.1.1',

@@ -8,6 +8,7 @@ use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Type\ArraySchema;
+use Rasuvaeff\Schema\Type\DateTimeSchema;
 use Rasuvaeff\Schema\Type\EnumSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Rasuvaeff\Schema\Type\MapSchema;
@@ -48,6 +49,10 @@ final class Wire
             }
 
             return $value;
+        }
+
+        if ($schema instanceof DateTimeSchema && $value instanceof \DateTimeImmutable) {
+            return $value->format(\DATE_RFC3339_EXTENDED);
         }
 
         if ($schema instanceof ArraySchema && \is_array($value)) {

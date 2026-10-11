@@ -23,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IntSchema::positive()` (>= 1) and `nonNegative()` (>= 0) — the named
   intent of ids and counters, thin wrappers over `min()` with identical
   parse, generator and JSON Schema export (#17).
+- `Schema::float()` — the number type: finite floats only (NaN/INF
+  rejected), inclusive `min()`/`max()`, `allowInt()` widening parse to
+  whole numbers (normalized to float), generator over the same range,
+  export `type: number` with `minimum`/`maximum` (#6).
+- `Schema::dateTime()` — RFC 3339 string on the wire, `DateTimeImmutable`
+  in the PHP domain, inclusive `min()`/`max()` bounds, generator over the
+  same range, export `type: string, format: date-time` (bounds recorded
+  as a `NonRepresentable` entry — pure draft 2020-12 has no keyword for
+  them), `toWire()` formats back to the string (#15).
+- `Format::DateTime` strictness aligned with `Schema::dateTime()`:
+  rolled-over components (`25:00`) and trailing data are now rejected
+  instead of silently rolling over (#15).
 
 ## 0.3.0 — 2026-10-10
 

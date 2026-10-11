@@ -25,6 +25,8 @@ use Rasuvaeff\Schema\Schema;
 $schema = Schema::object([
     'email' => Schema::string()->min(3)->max(254),        // code-point length
     'age' => Schema::int()->min(18)->max(120),
+    'score' => Schema::float()->min(0.0)->max(1.0)->allowInt(),  // finite only
+    'created_at' => Schema::dateTime()->min($epoch),      // RFC 3339 wire, DateTimeImmutable domain
     'active' => Schema::bool(),
     'kind' => Schema::literal('creator'),                  // strict ===
     'role' => Schema::enum(Role::class),                   // backed enum
@@ -142,6 +144,19 @@ schema (honest superset) + entry; transform → declared codec.
   reported as `Pattern check failed (PCRE engine error: …)`, never as a
   plain mismatch
 - int: `min(int)`, `max(int)`, `positive()` (>= 1, thin alias of `min(1)`), `nonNegative()` (>= 0)
+- float: `min(float)`, `max(float)`, `allowInt()` (JSON `1` accepted, normalized
+  to `1.0`); NaN/INF rejected by parse and by bound setters; generator is
+  `Gen::floatBetween` over `[min, max)` (both parse bounds inclusive — parity
+  holds); export `type: number` with `minimum`/`maximum`
+- dateTime: `min(DateTimeImmutable)`, `max(DateTimeImmutable)`; wire form is
+  the exact generator shape — RFC 3339 **with milliseconds** and offset
+  (`+00:00` or `Z`); rolled-over components (`25:00`) and trailing data are
+  rejected; export `type: string, format: date-time` — bounds are not
+  representable in pure draft 2020-12, so they add a `NonRepresentable`
+  `dateTime bounds` entry; `toWire()` formats the instance back to the
+  string. Domain split like a transform: `arbitrary()` yields
+  `DateTimeImmutable`, `parse()` takes the wire string — the pinned law is
+  the wire round trip, not the direct parse
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
 - object: `additionalProperties(bool $allow = true)`
 - property modifiers: `optional()`, `default(mixed $validated)`
