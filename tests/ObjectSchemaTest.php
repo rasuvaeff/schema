@@ -196,7 +196,7 @@ final class ObjectSchemaTest
         Assert::true($passthrough->parse(['name' => 'ann', 'extra' => 1])->ok);
         Assert::same($passthrough->parse(['name' => 'ann', 'extra' => 1])->value['extra'], 1);
 
-        $strict = Schema::object(['name' => Schema::string()])->strip()->additionalProperties(false);
+        $strict = Schema::object(['name' => Schema::string()])->strip()->additionalProperties(allow: false);
 
         Assert::false($strict->additionalProperties);
         Assert::false($strict->strip);
@@ -213,7 +213,7 @@ final class ObjectSchemaTest
     {
         $export = Schema::object(['name' => Schema::string()])->strip()->toJsonSchema();
 
-        Assert::same($export->schema['additionalProperties'], true);
+        Assert::same($export->schema['additionalProperties'], expected: true);
         Assert::same($export->nonRepresentable[0]->construct, 'strip');
         Assert::same($export->nonRepresentable[0]->toPath(), '$');
     }

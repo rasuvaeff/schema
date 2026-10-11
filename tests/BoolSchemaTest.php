@@ -77,8 +77,8 @@ final class BoolSchemaTest
 
     public function coerceStillAcceptsRealBooleans(): void
     {
-        Assert::true(Schema::bool()->coerce()->parse(true)->ok);
-        Assert::same(Schema::bool()->coerce()->parse(false)->value, false);
+        Assert::true(Schema::bool()->coerce()->parse(input: true)->ok);
+        Assert::same(Schema::bool()->coerce()->parse(input: false)->value, expected: false);
     }
 
     public function coerceIsRecordedInTheExport(): void
