@@ -40,7 +40,7 @@ final class DateTimeSchema extends SchemaType
 
     public function min(\DateTimeImmutable $value): self
     {
-        if ($this->max !== null && $value > $this->max) {
+        if ($this->max instanceof \DateTimeImmutable && $value > $this->max) {
             throw new \InvalidArgumentException('Minimum must not exceed the maximum');
         }
 
@@ -49,7 +49,7 @@ final class DateTimeSchema extends SchemaType
 
     public function max(\DateTimeImmutable $value): self
     {
-        if ($this->min !== null && $value < $this->min) {
+        if ($this->min instanceof \DateTimeImmutable && $value < $this->min) {
             throw new \InvalidArgumentException('Maximum must not be below the minimum');
         }
 
@@ -74,7 +74,7 @@ final class DateTimeSchema extends SchemaType
             ]);
         }
 
-        if ($this->min !== null && $parsed < $this->min) {
+        if ($this->min instanceof \DateTimeImmutable && $parsed < $this->min) {
             return ParseResult::failed([
                 new ParseError(
                     [],
@@ -83,7 +83,7 @@ final class DateTimeSchema extends SchemaType
             ]);
         }
 
-        if ($this->max !== null && $parsed > $this->max) {
+        if ($this->max instanceof \DateTimeImmutable && $parsed > $this->max) {
             return ParseResult::failed([
                 new ParseError(
                     [],
@@ -121,7 +121,7 @@ final class DateTimeSchema extends SchemaType
     {
         $schema = ['type' => 'string', 'format' => 'date-time'];
 
-        if ($this->min === null && $this->max === null) {
+        if (!$this->min instanceof \DateTimeImmutable && !$this->max instanceof \DateTimeImmutable) {
             return JsonSchemaExport::of($schema);
         }
 

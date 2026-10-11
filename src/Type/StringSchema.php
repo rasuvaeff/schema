@@ -200,7 +200,7 @@ final class StringSchema extends SchemaType
             Format::Email => \filter_var($input, \FILTER_VALIDATE_EMAIL) !== false,
             Format::Uuid => \preg_match('(^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z)i', $input) === 1,
             Format::Url => \filter_var($input, \FILTER_VALIDATE_URL) !== false,
-            Format::DateTime => self::rfc3339($input) !== null,
+            Format::DateTime => $this->rfc3339($input) instanceof \DateTimeImmutable,
             Format::Ipv4 => \filter_var($input, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false,
         };
     }
@@ -211,7 +211,7 @@ final class StringSchema extends SchemaType
      * alone would forgive. The same rule lives in
      * {@see DateTimeSchema::parse()} — one wire format, one verdict.
      */
-    private static function rfc3339(string $input): ?\DateTimeImmutable
+    private function rfc3339(string $input): ?\DateTimeImmutable
     {
         $parsed = \DateTimeImmutable::createFromFormat(\DATE_RFC3339_EXTENDED, $input);
 
