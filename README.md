@@ -161,6 +161,72 @@ Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 
 Order rule: combinators first, property modifiers last —
 `->min(1)->transform(...)->optional()`.
 
+### Hydrating into a DTO: `into()`
+
+```php
+$user = Schema::object([
+    'name' => Schema::string()->min(1),
+    'role' => Schema::enum(Role::class),
+])->into(UserDto::class);
+
+$dto = $user->parseOrThrow($payload);   // UserDto, role already a Role case
+$user->toWire($dto);                    // ['name' => ..., 'role' => 'admin']
+```
+
+The parsed properties are passed to the constructor as named arguments,
+after defaults and `strip()` are settled. The DTO takes its properties as
+public promoted constructor arguments — that is what makes `toWire()`
+lossless. A constructor that throws becomes a parse error carrying the class
+names only. The export is the object schema's own. Keep the DTO's own
+invariants within the schema: a constructor stricter than the schema breaks
+the generator.
+
+### Patterns outside the generatable subset: `regexUnchecked()`
+
+`regex()` only accepts patterns `Gen::stringMatching` can generate — `\z`,
+lookaround and backreferences are rejected at construction. `regexUnchecked()`
+is the explicit opt-out: you supply the generator, the schema keeps the
+pattern for parsing and export.
+
+```php
+Schema::string()->regexUnchecked(
+    '^a+\z',
+    Gen::map(Gen::intBetween(1, 8), static fn (int $n): string => str_repeat('a', $n)),
+);
+```
+
+The parity law is then yours: everything the generator produces must match.
+Build matching values constructively; a `Gen::filter()` with the pattern as
+predicate only works when matches are common. The export records a
+`regexUnchecked` entry in `nonRepresentable` — nothing vouches that a JSON
+Schema (ECMA-262) validator reads the PCRE pattern the same way.
+
+### Testing: `Testing\RoundTrip`
+
+The parity laws, defined once next to the schema instead of being copied
+into every consumer's test support. Framework-agnostic: each method checks
+one value and throws `Testing\RoundTripException` on violation, so it plugs
+into a property test (feed it `$schema->arbitrary()`) or a PHPUnit loop.
+
+```php
+RoundTrip::assertParses($schema, $value);          // generated ⇒ parses
+RoundTrip::assertWireRoundTrip($schema, $value);   // toWire → parse → toWire is lossless
+RoundTrip::assertConsumerRoundTrip(                // your hydrate/wire pair
+    $schema,
+    $payload,
+    static fn (mixed $p): object => Message::fromPayload($p),
+    static fn (object $m): array => $m->toPayload(),
+);
+```
+
+`assertConsumerRoundTrip()` checks that `hydrate($payload)` succeeds, that
+the schema's `toWire($payload)` equals your wire form of the hydrated object,
+and that wire → hydrate → wire is lossless. Failure messages carry the stage
+and value kinds only, never the values. `assertWireRoundTrip()` needs an
+invertible schema: a transform without a `wire` inverse, or a union whose
+members overlap (first success wins, so the wire form may re-parse through
+another member), breaks it by construction — prefer `Schema::discriminated()`.
+
 ## Security
 
 Error messages never embed input values — kinds and sizes only
@@ -182,7 +248,7 @@ The `Schema` facade is the single entry point; every factory returns a
 
 | Type | Factory | Notes |
 |---|---|---|
-| `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format`; rejects invalid UTF-8 |
+| `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `regexUnchecked` (own generator), `format`; rejects invalid UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0), `coerce()` |
 | `Type\FloatSchema` | `Schema::float()` | finite only (NaN/INF rejected); `min`/`max`, `allowInt()`, `coerce()`; export `type: number` |
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 wire ↔ `DateTimeImmutable` domain; inclusive `min`/`max` |
@@ -201,6 +267,10 @@ The `Schema` facade is the single entry point; every factory returns a
 | `Combinator\TransformSchema` | `->transform($fn)` | target-space generation, source-space shrinking |
 | `Combinator\RefineSchema` | `->refine($fn, $msg)` | post-condition; filtered generation |
 | `Type\ObjectProperty` | `->optional()` / `->default($v)` | property modifiers; default validated on construction |
+| `Combinator\IntoSchema` | `Schema::object([...])->into(Dto::class)` | hydrates the parsed properties into a DTO (named arguments); export and wire stay the object's |
+
+Testing helpers: `Testing\RoundTrip` (`assertParses`, `assertWireRoundTrip`,
+`assertConsumerRoundTrip`) and `Testing\RoundTripException`.
 
 Results: `ParseResult` / `ParseError` (segments → `$.tags[2]` and RFC 6901),
 `SchemaException`, `JsonSchemaExport` + `NonRepresentable` /

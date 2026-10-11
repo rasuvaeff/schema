@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Internal;
 
+use Rasuvaeff\Schema\Combinator\IntoSchema;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\SchemaInterface;
@@ -138,6 +139,10 @@ final class Wire
             }
 
             return $value;
+        }
+
+        if ($schema instanceof IntoSchema) {
+            return self::value($schema->object, \is_object($value) ? \get_object_vars($value) : $value);
         }
 
         if ($schema instanceof RefineSchema) {

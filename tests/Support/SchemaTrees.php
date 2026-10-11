@@ -30,13 +30,22 @@ final class SchemaTrees
     /**
      * @return ArbitraryInterface<SchemaInterface<mixed>>
      */
-    public static function tree(int $depth, bool $withTransforms = false): ArbitraryInterface
-    {
-        return Gen::composite(function () use ($depth, $withTransforms): SchemaInterface {
+    public static function tree(
+        int $depth,
+        bool $withTransforms = false,
+        bool $invertibleTransforms = false,
+        bool $withUnions = true,
+    ): ArbitraryInterface {
+        return Gen::composite(function () use ($depth, $withTransforms, $invertibleTransforms, $withUnions): SchemaInterface {
             $leaves = $withTransforms
                 ? [...self::LEAVES, ...self::TRANSFORM_LEAVES]
                 : self::LEAVES;
-            $kinds = $depth <= 0 ? $leaves : [...$leaves, ...self::NODES];
+            // An overlapping union is first-success-wins by contract, so its
+            // wire form can re-parse through another member: trees for the
+            // wire round trip leave unions out (discriminated stays — it is
+            // disjoint by construction).
+            $nodes = $withUnions ? self::NODES : \array_values(\array_diff(self::NODES, ['union']));
+            $kinds = $depth <= 0 ? $leaves : [...$leaves, ...$nodes];
             $kind = Gen::draw(Gen::elements($kinds));
 
             return match ($kind) {
@@ -48,29 +57,34 @@ final class SchemaTrees
                 'literal' => Schema::literal(Gen::draw(Gen::elements(['a', 'b', 1, true]))),
                 'enum' => Schema::enum(Gen::draw(Gen::elements([Role::class, Suit::class]))),
                 'json' => Schema::json(),
-                'transform' => Schema::int()->min(-4)->max(4)->transform(
-                    static fn(int $value): string => (string) $value,
-                    jsonSchema: ['type' => 'string'],
-                ),
+                'transform' => $invertibleTransforms
+                    ? Schema::int()->min(-4)->max(4)->transform(
+                        static fn(int $value): string => (string) $value,
+                        wire: static fn(string $value): int => (int) $value,
+                    )
+                    : Schema::int()->min(-4)->max(4)->transform(
+                        static fn(int $value): string => (string) $value,
+                        jsonSchema: ['type' => 'string'],
+                    ),
                 'refine' => Schema::int()->min(-4)->max(4)->refine(
                     static fn(int $value): bool => $value !== 999,
                     'never 999',
                 ),
-                'array' => Schema::arrayOf(Gen::draw(self::tree($depth - 1)))
+                'array' => Schema::arrayOf(Gen::draw(self::tree($depth - 1, withUnions: $withUnions)))
                     ->maxCount(Gen::draw(Gen::intBetween(0, 4))),
-                'map' => Schema::mapOf(Gen::draw(self::tree($depth - 1)))
+                'map' => Schema::mapOf(Gen::draw(self::tree($depth - 1, withUnions: $withUnions)))
                     ->maxCount(Gen::draw(Gen::intBetween(0, 3))),
-                'object' => self::object($depth),
-                'nullable' => Schema::nullable(Gen::draw(self::tree($depth - 1))),
+                'object' => self::object($depth, $withUnions),
+                'nullable' => Schema::nullable(Gen::draw(self::tree($depth - 1, withUnions: $withUnions))),
                 'union' => Schema::union([
-                    Gen::draw(self::tree($depth - 1)),
-                    Gen::draw(self::tree($depth - 1)),
+                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
+                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
                 ]),
                 'tuple' => Schema::tuple([
-                    Gen::draw(self::tree($depth - 1)),
-                    Gen::draw(self::tree($depth - 1)),
+                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
+                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
                 ]),
-                'discriminated' => self::discriminated($depth),
+                'discriminated' => self::discriminated($depth, $withUnions),
                 default => throw new \LogicException('Unreachable kind branch'),
             };
         });
@@ -130,33 +144,37 @@ final class SchemaTrees
             return Schema::dateTime();
         }
 
-        $min = Gen::draw(Gen::datetime());
+        // Capped a second short of the generator's default ceiling, so the
+        // max drawn a millisecond above it always has room.
+        $min = Gen::draw(Gen::datetime(max: new \DateTimeImmutable('2099-12-31T23:59:59+00:00')));
 
-        return Schema::dateTime()->min($min)->max(Gen::draw(Gen::datetime(min: $min)));
+        // At least a millisecond apart: bounds inside one millisecond admit
+        // no wire value and are rejected at construction.
+        return Schema::dateTime()->min($min)->max(Gen::draw(Gen::datetime(min: $min->modify('+1000 usec'))));
     }
 
-    private static function discriminated(int $depth): SchemaInterface
+    private static function discriminated(int $depth, bool $withUnions = true): SchemaInterface
     {
         $branches = [];
 
         foreach (['a', 'b'] as $tag) {
             $branches[$tag] = Schema::object([
                 'kind' => Schema::literal($tag),
-                'payload' => Gen::draw(self::tree($depth - 1)),
+                'payload' => Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
             ]);
         }
 
         return Schema::discriminated('kind', $branches);
     }
 
-    private static function object(int $depth): ObjectSchema
+    private static function object(int $depth, bool $withUnions = true): ObjectSchema
     {
         $properties = [];
         $count = Gen::draw(Gen::intBetween(1, 3));
 
         for ($i = 0; $i < $count; $i++) {
             $name = 'p' . $i;
-            $schema = Gen::draw(self::tree($depth - 1));
+            $schema = Gen::draw(self::tree($depth - 1, withUnions: $withUnions));
             $style = Gen::draw(Gen::elements(['required', 'optional', 'default']));
 
             $properties[$name] = match ($style) {

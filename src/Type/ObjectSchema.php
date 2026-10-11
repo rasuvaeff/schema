@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Type;
 use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\Combinator\IntoSchema;
 use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\NonRepresentable;
@@ -84,6 +85,26 @@ final class ObjectSchema extends SchemaType
     public function strip(): self
     {
         return new self(properties: $this->properties, additionalProperties: false, strip: true);
+    }
+
+    /**
+     * Hydrate the parsed properties into a DTO with named arguments — a
+     * thin combinator over the object parse:
+     * `Schema::object([...])->into(UserDto::class)`. The DTO takes its
+     * properties as public promoted constructor arguments; enum
+     * instances, defaults and stripped extras are already settled when
+     * the constructor runs. The export and the wire form stay this
+     * object schema's own.
+     *
+     * @template TDto of object
+     *
+     * @param class-string<TDto> $class must exist and be instantiable
+     *
+     * @return IntoSchema<TDto>
+     */
+    public function into(string $class): IntoSchema
+    {
+        return new IntoSchema($this, $class);
     }
 
     #[\Override]

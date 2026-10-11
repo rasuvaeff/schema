@@ -65,6 +65,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the branch's own error paths) instead of a flattened first-error
   summary; `SchemaException` renders them indented, and parents prepend
   their segment to branch paths (#10).
+- `ObjectSchema::into(Dto::class)` → `Combinator\IntoSchema`: optional
+  hydration of the parsed properties into a DTO via its named-argument
+  constructor (after defaults and `strip()`); a throwing constructor is a
+  parse error carrying class names only; the export and the wire form stay
+  the object schema's own (#14).
+- `StringSchema::regexUnchecked($pattern, $generator)`: an explicit opt-out
+  for valid PCRE patterns outside the generatable subset (`\z`, lookaround,
+  backreferences) — the caller supplies the generator, the export records a
+  `regexUnchecked` `NonRepresentable` entry; the `regex()` rejection message
+  points to it (#7).
+- `Testing\RoundTrip` (+ `Testing\RoundTripException`): framework-agnostic
+  parity assertions for consumers — `assertParses()`, `assertWireRoundTrip()`
+  and `assertConsumerRoundTrip()` for a hydrate/wire pair — so the law is
+  defined once next to the schema (#18).
+- `Schema::dateTime()` generator emits millisecond-precision moments (the
+  wire precision) inside the bounds aligned inwards; a value generated at a
+  sub-millisecond bound no longer falls outside it after `toWire()`. Bounds
+  that admit no millisecond-precision moment are rejected at construction.
+
 
 ## 0.3.0 — 2026-10-10
 

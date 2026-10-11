@@ -161,6 +161,74 @@ Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 
 Правило порядка: сначала комбинаторы, property-модификаторы в конце —
 `->min(1)->transform(...)->optional()`.
 
+### Гидрация в DTO: `into()`
+
+```php
+$user = Schema::object([
+    'name' => Schema::string()->min(1),
+    'role' => Schema::enum(Role::class),
+])->into(UserDto::class);
+
+$dto = $user->parseOrThrow($payload);   // UserDto, role уже кейс Role
+$user->toWire($dto);                    // ['name' => ..., 'role' => 'admin']
+```
+
+Распарсенные свойства передаются в конструктор именованными аргументами,
+уже после применения default'ов и `strip()`. DTO принимает свойства как
+public promoted-аргументы конструктора — именно это делает `toWire()`
+обратимым. Исключение из конструктора становится ошибкой парсинга, в которой
+есть только имена классов. Экспорт — собственный экспорт object-схемы.
+Держите инварианты DTO в пределах схемы: конструктор строже схемы ломает
+генератор.
+
+### Паттерны вне генерируемого подмножества: `regexUnchecked()`
+
+`regex()` принимает только паттерны, которые умеет генерировать
+`Gen::stringMatching`: `\z`, lookaround и обратные ссылки отвергаются при
+построении. `regexUnchecked()` — явный выход: генератор даёте вы, схема
+хранит паттерн для парсинга и экспорта.
+
+```php
+Schema::string()->regexUnchecked(
+    '^a+\z',
+    Gen::map(Gen::intBetween(1, 8), static fn (int $n): string => str_repeat('a', $n)),
+);
+```
+
+Закон паритета теперь на вас: всё, что выдаёт генератор, обязано совпадать с
+паттерном. Стройте подходящие значения конструктивно; `Gen::filter()` с
+паттерном в роли предиката работает, только если совпадения часты. Экспорт
+добавляет запись `regexUnchecked` в `nonRepresentable`: никто не гарантирует,
+что валидатор JSON Schema (ECMA-262) прочитает PCRE-паттерн так же.
+
+### Тестирование: `Testing\RoundTrip`
+
+Законы паритета определены один раз рядом со схемой, а не копируются в
+тестовую поддержку каждого потребителя. Не зависят от фреймворка: каждый
+метод проверяет одно значение и при нарушении бросает
+`Testing\RoundTripException`, так что подходят и для property-теста (подайте
+`$schema->arbitrary()`), и для цикла в PHPUnit.
+
+```php
+RoundTrip::assertParses($schema, $value);          // сгенерированное ⇒ парсится
+RoundTrip::assertWireRoundTrip($schema, $value);   // toWire → parse → toWire без потерь
+RoundTrip::assertConsumerRoundTrip(                // ваша пара hydrate/wire
+    $schema,
+    $payload,
+    static fn (mixed $p): object => Message::fromPayload($p),
+    static fn (object $m): array => $m->toPayload(),
+);
+```
+
+`assertConsumerRoundTrip()` проверяет, что `hydrate($payload)` проходит, что
+`toWire($payload)` схемы совпадает с вашей wire-формой гидрированного объекта
+и что wire → hydrate → wire не теряет данных. В сообщениях об ошибке — только
+стадия и типы значений, никогда сами значения. `assertWireRoundTrip()` требует
+обратимой схемы: transform без обратной функции `wire` или union с
+перекрывающимися членами (выигрывает первый подошедший, и wire-форма может
+распарситься через другой член) ломают закон по построению — предпочитайте
+`Schema::discriminated()`.
+
 ## Безопасность
 
 Сообщения об ошибках никогда не встраивают входные значения — только виды
@@ -181,7 +249,7 @@ code-point'ах и движок паттернов никогда не расх�
 
 | Тип | Фабрика | Примечания |
 |---|---|---|
-| `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format`; отвергает невалидный UTF-8 |
+| `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `regexUnchecked` (свой генератор), `format`; отвергает невалидный UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0), `coerce()` |
 | `Type\FloatSchema` | `Schema::float()` | только finite (NaN/INF отвергаются); `min`/`max`, `allowInt()`, `coerce()`; экспорт `type: number` |
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 в wire ↔ `DateTimeImmutable` в домене; инклюзивные `min`/`max` |
@@ -200,6 +268,10 @@ code-point'ах и движок паттернов никогда не расх�
 | `Combinator\TransformSchema` | `->transform($fn)` | генерация в target-пространстве, shrink в исходном |
 | `Combinator\RefineSchema` | `->refine($fn, $msg)` | пост-условие; фильтрованная генерация |
 | `Type\ObjectProperty` | `->optional()` / `->default($v)` | property-модификаторы; default валидируется при конструировании |
+| `Combinator\IntoSchema` | `Schema::object([...])->into(Dto::class)` | гидрирует распарсенные свойства в DTO (именованные аргументы); экспорт и wire — от object-схемы |
+
+Тестовые хелперы: `Testing\RoundTrip` (`assertParses`, `assertWireRoundTrip`,
+`assertConsumerRoundTrip`) и `Testing\RoundTripException`.
 
 Результаты: `ParseResult` / `ParseError` (сегменты → `$.tags[2]` и RFC 6901),
 `SchemaException`, `JsonSchemaExport` + `NonRepresentable` /

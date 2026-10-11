@@ -92,7 +92,16 @@ make release-check
   generator cannot compile (`\z`, and anything else outside the core's
   PCRE subset) is an authoring error at construction, not an explosion in
   `arbitrary()`. Use `$` (the `$`-vs-`\z` trailing-newline nuance is the
-  price of guaranteed parity).
+  price of guaranteed parity). `regexUnchecked($pattern, $generator)` is the
+  explicit opt-out: the caller's generator carries the law, and the export
+  records a `regexUnchecked` `NonRepresentable` entry.
+- **`dateTime` is millisecond-precision on the wire** — the generator floors
+  to milliseconds inside the bounds aligned inwards (`min` up, `max` down);
+  never let it emit microseconds, a value at a sub-millisecond bound would
+  fall outside it after `toWire()`.
+- **`into()` hydrates via `ReflectionClass::newInstanceArgs()`** with named
+  arguments; `toWire()` walks the object schema over `get_object_vars()`, so
+  the DTO's public promoted properties must mirror the object's keys.
 - **Property generators live in `tests/Support/*` as `public static`**
   providers (`SchemaTrees`) — a private static helper in a test class turns
   rector red on release-check.

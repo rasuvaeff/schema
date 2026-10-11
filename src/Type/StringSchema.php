@@ -8,6 +8,7 @@ use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\Format;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -31,12 +32,17 @@ final class StringSchema extends SchemaType
      * @param int<0, max>|null $maxLength
      * @param string|null $pattern a complete PCRE pattern with delimiters;
      *     the empty string is rejected eagerly
+     * @param ArbitraryInterface<string>|null $patternGenerator the
+     *     caller-supplied generator of a `regexUnchecked()` pattern —
+     *     never set for `regex()` patterns, which generate through
+     *     `Gen::stringMatching`
      */
     public function __construct(
         public readonly ?int $minLength = null,
         public readonly ?int $maxLength = null,
         public readonly ?string $pattern = null,
         public readonly ?Format $format = null,
+        public readonly ?ArbitraryInterface $patternGenerator = null,
     ) {
         if ($pattern === '') {
             throw new \InvalidArgumentException('Pattern must not be empty');
@@ -44,6 +50,10 @@ final class StringSchema extends SchemaType
 
         if ($pattern !== null && $format instanceof \Rasuvaeff\Schema\Format) {
             throw new \InvalidArgumentException('Pattern and format are mutually exclusive — combine lengths with one of them');
+        }
+
+        if ($patternGenerator instanceof ArbitraryInterface && $pattern === null) {
+            throw new \InvalidArgumentException('A pattern generator is only meaningful together with a pattern');
         }
     }
 
@@ -57,7 +67,7 @@ final class StringSchema extends SchemaType
             throw new \InvalidArgumentException('Minimum length must not exceed the maximum');
         }
 
-        return new self(minLength: $length, maxLength: $this->maxLength, pattern: $this->pattern);
+        return new self(minLength: $length, maxLength: $this->maxLength, pattern: $this->pattern, patternGenerator: $this->patternGenerator);
     }
 
     public function max(int $length): self
@@ -70,7 +80,7 @@ final class StringSchema extends SchemaType
             throw new \InvalidArgumentException('Maximum length must not be below the minimum');
         }
 
-        return new self(minLength: $this->minLength, maxLength: $length, pattern: $this->pattern);
+        return new self(minLength: $this->minLength, maxLength: $length, pattern: $this->pattern, patternGenerator: $this->patternGenerator);
     }
 
     /**
@@ -83,6 +93,55 @@ final class StringSchema extends SchemaType
      *     authoring error, rejected eagerly
      */
     public function regex(string $pattern): self
+    {
+        $this->assertValidPcre($pattern);
+
+        try {
+            Gen::stringMatching($pattern);
+        } catch (\InvalidArgumentException $uncompilable) {
+            throw new \InvalidArgumentException(
+                'Pattern is valid PCRE but not generatable — the parity law requires the generator to produce matching strings; use the supported subset (e.g. `$` instead of `\z`), or bring your own generator via regexUnchecked()',
+                0,
+                $uncompilable,
+            );
+        }
+
+        return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern);
+    }
+
+    /**
+     * The explicit opt-out for patterns outside the generatable PCRE
+     * subset (`\z`, lookaround, backreferences, flags): you supply the
+     * generator, the schema keeps the pattern for parsing and export.
+     *
+     * The parity law becomes yours to uphold: everything `$generator`
+     * produces must match `$pattern` — the package can no longer check
+     * it at construction. Build matching values constructively
+     * (`Gen::map()` over the parts of the pattern); a `Gen::filter()` with
+     * the pattern as its predicate only works when matches are common in
+     * the source generator, otherwise generation is exhausted.
+     *
+     * @param non-empty-string $pattern a PCRE pattern in the
+     *     `regex()` convention — no delimiters, no flags
+     * @param ArbitraryInterface<string> $generator must produce strings
+     *     matching `$pattern`
+     */
+    public function regexUnchecked(string $pattern, ArbitraryInterface $generator): self
+    {
+        $this->assertValidPcre($pattern);
+
+        return new self(
+            minLength: $this->minLength,
+            maxLength: $this->maxLength,
+            pattern: $pattern,
+            patternGenerator: $generator,
+        );
+    }
+
+    /**
+     * @param non-empty-string $pattern
+     */
+    private function assertValidPcre(string $pattern): void
     {
         $error = null;
         \set_error_handler(static function (int $severity, string $message) use (&$error): bool {
@@ -100,18 +159,6 @@ final class StringSchema extends SchemaType
         if ($probe === false || $error !== null) {
             throw new \InvalidArgumentException('Invalid regular expression pattern');
         }
-
-        try {
-            Gen::stringMatching($pattern);
-        } catch (\InvalidArgumentException $uncompilable) {
-            throw new \InvalidArgumentException(
-                'Pattern is valid PCRE but not generatable — the parity law requires the generator to produce matching strings; use the supported subset (e.g. `$` instead of `\z`)',
-                0,
-                $uncompilable,
-            );
-        }
-
-        return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern);
     }
 
     /**
@@ -266,7 +313,7 @@ final class StringSchema extends SchemaType
         }
 
         if ($this->pattern !== null) {
-            $arbitrary = Gen::stringMatching($this->pattern);
+            $arbitrary = $this->patternGenerator ?? Gen::stringMatching($this->pattern);
             if ($this->minLength !== null || $this->maxLength !== null) {
                 $min = $this->minLength ?? 0;
                 $max = $this->maxLength ?? max($min, 100);
@@ -312,6 +359,14 @@ final class StringSchema extends SchemaType
 
         if ($this->format instanceof \Rasuvaeff\Schema\Format) {
             $schema['format'] = $this->format->value;
+        }
+
+        // A regexUnchecked() pattern sits outside the checked subset on
+        // purpose (`\z`, lookaround, backreferences) — exported as written,
+        // but nothing vouches that a JSON Schema (ECMA-262) validator reads
+        // it the way PCRE does, so the drop of that guarantee is recorded.
+        if ($this->patternGenerator instanceof ArbitraryInterface) {
+            return JsonSchemaExport::of($schema, [new NonRepresentable([], 'regexUnchecked')]);
         }
 
         return JsonSchemaExport::of($schema);

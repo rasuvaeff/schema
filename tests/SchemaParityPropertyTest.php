@@ -9,6 +9,7 @@ use Rasuvaeff\PropertyTesting\Classify;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Property;
 use Rasuvaeff\Schema\Schema;
+use Rasuvaeff\Schema\Testing\RoundTrip;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
 use Rasuvaeff\Schema\Type\BoolSchema;
@@ -25,7 +26,6 @@ use Rasuvaeff\Schema\Type\ObjectSchema;
 use Rasuvaeff\Schema\Type\StringSchema;
 use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
-use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
 
@@ -50,6 +50,7 @@ use Testo\Test;
 #[Covers(UnionSchema::class)]
 #[Covers(TupleSchema::class)]
 #[Covers(DiscriminatedSchema::class)]
+#[Covers(RoundTrip::class)]
 final class SchemaParityPropertyTest
 {
     #[Property(runs: 300)]
@@ -62,7 +63,38 @@ final class SchemaParityPropertyTest
         Classify::when($value === null, 'null');
         Classify::cover(\is_array($value), 'structured', 5);
 
-        Assert::true($schema->parse($value)->ok);
+        RoundTrip::assertParses($schema, $value);
+    }
+
+    #[Property(runs: 300)]
+    public function wireRoundTripIsLossless(int $depth): void
+    {
+        $schema = Gen::draw(SchemaTrees::tree($depth, withTransforms: true, invertibleTransforms: true, withUnions: false));
+        $value = Gen::draw($schema->arbitrary());
+
+        Classify::when(\is_array($value), 'structured');
+
+        RoundTrip::assertWireRoundTrip($schema, $value);
+    }
+
+    /**
+     * @return array<string, ArbitraryInterface>
+     */
+    public static function wireRoundTripIsLosslessGenerators(): array
+    {
+        return [
+            'depth' => Gen::intBetween(1, 3),
+        ];
+    }
+
+    /**
+     * @return iterable<string, list<int>>
+     */
+    public static function wireRoundTripIsLosslessExamples(): iterable
+    {
+        yield 'shallow trees' => [1];
+
+        yield 'deep trees' => [3];
     }
 
     /**

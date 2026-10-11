@@ -12,6 +12,7 @@ use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
+use Testo\Expect;
 use Testo\Test;
 
 #[Test]
@@ -218,5 +219,55 @@ final class DateTimeSchemaTest
         $alreadyWire = Schema::dateTime()->toWire(self::WIRE);
 
         Assert::same($alreadyWire, self::WIRE);
+    }
+
+    public function generatedValuesAtSubMillisecondBoundsSurviveTheWire(): void
+    {
+        $min = new \DateTimeImmutable('2028-07-12T23:50:28.849123+00:00');
+        $max = new \DateTimeImmutable('2028-07-12T23:50:28.851900+00:00');
+        $schema = Schema::dateTime()->min($min)->max($max);
+        $random = new Random(5);
+
+        for ($i = 0; $i < 50; $i++) {
+            $value = $schema->arbitrary()->generate($random)->value;
+
+            Assert::same((int) $value->format('u') % 1000, 0);
+            Assert::true($schema->parse($schema->toWire($value))->ok);
+        }
+    }
+
+    public function boundsInsideOneMillisecondAreRejected(): void
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('no millisecond-precision');
+
+        Schema::dateTime()
+            ->min(new \DateTimeImmutable('2028-07-12T23:50:28.849100+00:00'))
+            ->max(new \DateTimeImmutable('2028-07-12T23:50:28.849900+00:00'));
+    }
+
+    public function millisecondAlignedEqualBoundsAreAccepted(): void
+    {
+        $moment = new \DateTimeImmutable('2028-07-12T23:50:28.849000+00:00');
+        $schema = Schema::dateTime()->min($moment)->max($moment);
+
+        Assert::same($schema->arbitrary()->generate(new Random(1))->value->format('Y-m-d\TH:i:s.u'), '2028-07-12T23:50:28.849000');
+    }
+
+    public function aMinimumAfterTheMaximumIsRejectedByName(): void
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage('Minimum must not exceed the maximum');
+
+        Schema::dateTime()
+            ->max(new \DateTimeImmutable('2028-01-01T00:00:00.000+00:00'))
+            ->min(new \DateTimeImmutable('2028-01-02T00:00:00.000+00:00'));
+    }
+
+    public function aMaximumBeforeTheMinimumIsRejectedByName(): void
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage('Maximum must not be below the minimum');
+
+        Schema::dateTime()
+            ->min(new \DateTimeImmutable('2028-01-02T00:00:00.000+00:00'))
+            ->max(new \DateTimeImmutable('2028-01-01T00:00:00.000+00:00'));
     }
 }
