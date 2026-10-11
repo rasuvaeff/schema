@@ -134,7 +134,10 @@ schema (honest superset) + entry; transform → declared codec.
   (the `Gen::stringMatching` convention; eagerly probed for generatability —
   `\z` is rejected, use `$`), `format(Format::Email|Uuid|Url|DateTime|Ipv4)`
   (format and pattern are mutually exclusive; a format + tight bounds can
-  empty the value set — generation then fails loudly)
+  empty the value set — generation then fails loudly). Invalid UTF-8 is
+  rejected up-front (`String is not valid UTF-8`); a PCRE engine failure is
+  reported as `Pattern check failed (PCRE engine error: …)`, never as a
+  plain mismatch
 - int: `min(int)`, `max(int)`
 - arrayOf/mapOf: `minCount(int)`, `maxCount(int)`
 - object: `additionalProperties(bool $allow = true)`

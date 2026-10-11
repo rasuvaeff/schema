@@ -163,6 +163,13 @@ Error messages never embed input values — kinds and sizes only
 travel to logs and Sentry. A `transform` callback that throws contributes
 its class name only.
 
+Strings are JSON's domain: `string()` rejects invalid UTF-8 up-front
+(`mb_check_encoding`), before any length, format or pattern check, so the
+code-point length and the pattern engine never disagree about the input. A
+PCRE engine failure (e.g. backtrack limit exhausted) is reported as its own
+error — `Pattern check failed (PCRE engine error: …)` — never as a plain
+pattern mismatch.
+
 ## API
 
 The `Schema` facade is the single entry point; every factory returns a
@@ -170,7 +177,7 @@ The `Schema` facade is the single entry point; every factory returns a
 
 | Type | Factory | Notes |
 |---|---|---|
-| `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format` |
+| `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format`; rejects invalid UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |

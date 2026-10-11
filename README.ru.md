@@ -163,6 +163,12 @@ Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 
 а ошибки уезжают в логи и Sentry. Колбэк `transform`, бросивший исключение,
 отдаёт только имя класса.
 
+Строки — домен JSON: `string()` отвергает невалидный UTF-8 до всех проверок
+(`mb_check_encoding`) — до длины, формата и паттерна, — поэтому длина в
+code-point'ах и движок паттернов никогда не расходятся во мнениях об входе.
+Сбой самого PCRE (например, исчерпан backtrack-лимит) — отдельная ошибка
+`Pattern check failed (PCRE engine error: …)`, а не «строка не совпала».
+
 ## API
 
 Фасад `Schema` — единственная точка входа; каждая фабрика возвращает
@@ -170,7 +176,7 @@ Schema::string()->refine(static fn (string $v): bool => !str_contains($v, ' '), 
 
 | Тип | Фабрика | Примечания |
 |---|---|---|
-| `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format` |
+| `Type\StringSchema` | `Schema::string()` | `min`/`max` в code-point'ах, `regex`, `format`; отвергает невалидный UTF-8 |
 | `Type\IntSchema` | `Schema::int()` | `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | |
 | `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
