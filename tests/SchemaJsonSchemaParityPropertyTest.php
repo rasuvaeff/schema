@@ -113,9 +113,13 @@ final class SchemaJsonSchemaParityPropertyTest
         if ($schema instanceof ObjectSchema && \is_array($value)) {
             $object = new \stdClass();
 
-            foreach ($schema->properties as $name => $property) {
-                if (\array_key_exists($name, $value)) {
-                    $object->{$name} = self::toJson($property->schema, $value[$name]);
+            foreach ($value as $key => $item) {
+                $property = $schema->properties[$key] ?? null;
+
+                if ($property !== null) {
+                    $object->{$key} = self::toJson($property->schema, $item);
+                } elseif (!$schema->strip) {
+                    $object->{$key} = \is_array($item) ? self::toSchema($item) : $item;
                 }
             }
 

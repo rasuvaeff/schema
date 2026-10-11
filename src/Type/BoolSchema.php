@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Type;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -19,9 +20,32 @@ use Rasuvaeff\Schema\SchemaType;
  */
 final class BoolSchema extends SchemaType
 {
+    public function __construct(
+        public readonly bool $coerce = false,
+    ) {}
+
+    /**
+     * Accept the four unambiguous boolean strings — `"true"`, `"false"`,
+     * `"1"`, `"0"` (case-sensitive) — and normalize them to bool. The
+     * generator's domain stays bool; the export keeps `type: boolean`
+     * with a `NonRepresentable` `coerce` entry.
+     */
+    public function coerce(): self
+    {
+        return new self(coerce: true);
+    }
+
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
+        if (\is_string($input) && $this->coerce) {
+            $input = match ($input) {
+                'true', '1' => true,
+                'false', '0' => false,
+                default => $input,
+            };
+        }
+
         if (!\is_bool($input)) {
             return ParseResult::failed([
                 new ParseError([], \sprintf('Expected bool, got %s', \get_debug_type($input))),
@@ -55,6 +79,13 @@ final class BoolSchema extends SchemaType
     #[\Override]
     public function toJsonSchema(bool $lenient = false): JsonSchemaExport
     {
-        return JsonSchemaExport::of(['type' => 'boolean']);
+        if (!$this->coerce) {
+            return JsonSchemaExport::of(['type' => 'boolean']);
+        }
+
+        return JsonSchemaExport::of(
+            ['type' => 'boolean'],
+            [new NonRepresentable([], 'coerce')],
+        );
     }
 }

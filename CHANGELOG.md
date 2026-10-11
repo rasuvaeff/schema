@@ -44,6 +44,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Schema::tuple([...])` — a fixed-length heterogeneous list
   (`prefixItems` + `items: false`), errors carrying their element index
   (`$[1]`) (#9).
+- `ObjectSchema::strip()` — the third unknown-key mode: drop unknown keys
+  and keep the known ones (the shape for parsing external payloads you
+  only trust partially). Mutually exclusive with
+  `additionalProperties()`; the export keeps `additionalProperties: true`
+  and records the drop as a `NonRepresentable` `strip` entry (#13).
+- **Behavior change:** `additionalProperties()` now passes unknown keys
+  **through into the parse result** (the mode's documented purpose —
+  round-tripping partially known maps); previously they were tolerated
+  but silently dropped, making it indistinguishable from strip (#13).
+- Optional `coerce()` on `Schema::int()`, `Schema::float()` and
+  `Schema::bool()`: canonical number/bool strings from query strings and
+  forms are accepted and normalized to the typed value (bounds apply
+  after the coercion; no leading zeros, no whitespace, no overflow; bool
+  strings are the four unambiguous `true`/`false`/`1`/`0`). The
+  generator's domain stays typed; each export keeps its canonical type
+  and records a `NonRepresentable` `coerce` entry (#8).
 - `UnionSchema` failures now keep structured branch errors:
   `ParseError->branches` (`list<UnionBranch>` with the member index and
   the branch's own error paths) instead of a flattened first-error

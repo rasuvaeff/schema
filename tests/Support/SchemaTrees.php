@@ -44,7 +44,7 @@ final class SchemaTrees
                 'int' => self::int(),
                 'float' => self::float(),
                 'dateTime' => self::dateTime(),
-                'bool' => Schema::bool(),
+                'bool' => Gen::draw(Gen::bool()) ? Schema::bool() : Schema::bool()->coerce(),
                 'literal' => Schema::literal(Gen::draw(Gen::elements(['a', 'b', 1, true]))),
                 'enum' => Schema::enum(Gen::draw(Gen::elements([Role::class, Suit::class]))),
                 'json' => Schema::json(),
@@ -99,7 +99,9 @@ final class SchemaTrees
         $min = Gen::draw(Gen::intBetween(-5, 0));
         $max = Gen::draw(Gen::intBetween(0, 5));
 
-        return Schema::int()->min($min)->max($max);
+        $schema = Schema::int()->min($min)->max($max);
+
+        return Gen::draw(Gen::bool()) ? $schema : $schema->coerce();
     }
 
     private static function float(): SchemaInterface
@@ -109,11 +111,17 @@ final class SchemaTrees
         }
 
         // min <= 0 <= max by construction, so the pair is always valid;
-        // allowInt occasionally rides along for constructor coverage.
+        // allowInt/coerce occasionally ride along for constructor coverage.
         $min = Gen::draw(Gen::floatBetween(-5.0, 0.0));
         $max = Gen::draw(Gen::floatBetween(0.0, 5.0));
 
-        return Schema::float()->min($min)->max($max)->allowInt();
+        $schema = Schema::float()->min($min)->max($max);
+
+        return match (Gen::draw(Gen::intBetween(0, 2))) {
+            1 => $schema->allowInt(),
+            2 => $schema->coerce(),
+            default => $schema,
+        };
     }
 
     private static function dateTime(): SchemaInterface

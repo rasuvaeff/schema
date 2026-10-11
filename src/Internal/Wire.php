@@ -80,9 +80,16 @@ final class Wire
         if ($schema instanceof ObjectSchema && \is_array($value)) {
             $converted = [];
 
-            foreach ($schema->properties as $name => $property) {
-                if (\array_key_exists($name, $value)) {
-                    $converted[$name] = self::value($property->schema, $value[$name]);
+            foreach ($value as $key => $item) {
+                $property = $schema->properties[(string) $key] ?? null;
+
+                if ($property !== null) {
+                    $converted[$key] = self::value($property->schema, $item);
+                } elseif (!$schema->strip) {
+                    // Pass-through mode keeps unknown keys in their raw
+                    // shape; strip drops them (a parsed value never
+                    // carries them — defensive for hand-built values).
+                    $converted[$key] = $item;
                 }
             }
 

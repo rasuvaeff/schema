@@ -183,16 +183,16 @@ The `Schema` facade is the single entry point; every factory returns a
 | Type | Factory | Notes |
 |---|---|---|
 | `Type\StringSchema` | `Schema::string()` | code-point `min`/`max`, `regex`, `format`; rejects invalid UTF-8 |
-| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0) |
-| `Type\FloatSchema` | `Schema::float()` | finite only (NaN/INF rejected); `min`/`max`, `allowInt()`; export `type: number` |
+| `Type\IntSchema` | `Schema::int()` | `min`/`max`, `positive()` (≥1), `nonNegative()` (≥0), `coerce()` |
+| `Type\FloatSchema` | `Schema::float()` | finite only (NaN/INF rejected); `min`/`max`, `allowInt()`, `coerce()`; export `type: number` |
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 wire ↔ `DateTimeImmutable` domain; inclusive `min`/`max` |
-| `Type\BoolSchema` | `Schema::bool()` | |
+| `Type\BoolSchema` | `Schema::bool()` | `coerce()` (`"true"`/`"1"` → `true`) |
 | `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; instance or backed value in, instance out |
 | `Type\JsonValueSchema` | `Schema::json()` | the `json_decode` domain |
 | `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
 | `Type\MapSchema` | `Schema::mapOf($v)` | string keys; `minCount`/`maxCount` |
-| `Type\ObjectSchema` | `Schema::object([...])` | `optional`/`default` properties, `additionalProperties()` |
+| `Type\ObjectSchema` | `Schema::object([...])` | `optional`/`default` properties, `additionalProperties()`, `strip()` |
 | `Type\UnionSchema` | `Schema::union([...])` | first success wins |
 | `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | tag selects the branch; disjoint by construction (required literal tag); export `oneOf` |
 | `Type\TupleSchema` | `Schema::tuple([...])` | fixed-length heterogeneous list; export `prefixItems` + `items: false` |

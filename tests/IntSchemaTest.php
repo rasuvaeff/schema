@@ -150,9 +150,91 @@ final class IntSchemaTest
         }
     }
 
+    public function equalBoundsInEitherSetterOrder(): void
+    {
+        $viaMin = Schema::int()->max(2)->min(2);
+        $viaMax = Schema::int()->min(-1)->max(-1);
+
+        Assert::same($viaMin->min, 2);
+        Assert::same($viaMin->max, 2);
+        Assert::same($viaMax->min, -1);
+        Assert::same($viaMax->max, -1);
+    }
+
     #[ExpectException(\InvalidArgumentException::class)]
     public function positiveConflictsWithALowerMaxEagerly(): void
     {
         Schema::int()->max(0)->positive();
+    }
+
+    #[DataProvider('coercionProvider')]
+    public function coerceNormalizesCanonicalIntStrings(string $input, int $expected): void
+    {
+        $result = Schema::int()->coerce()->parse($input);
+
+        Assert::true($result->ok);
+        Assert::same($result->value, $expected);
+    }
+
+    public static function coercionProvider(): iterable
+    {
+        yield 'positive' => ['5', 5];
+
+        yield 'negative' => ['-3', -3];
+
+        yield 'zero' => ['0', 0];
+    }
+
+    #[DataProvider('coercionRejectionProvider')]
+    public function coerceRejectsNonCanonicalIntStrings(string $input): void
+    {
+        $result = Schema::int()->coerce()->parse($input);
+
+        Assert::false($result->ok);
+        Assert::same($result->errors[0]->message, 'Expected int, got string');
+    }
+
+    public static function coercionRejectionProvider(): iterable
+    {
+        yield 'leading zeros' => ['007'];
+
+        yield 'float string' => ['5.0'];
+
+        yield 'plus sign' => ['+5'];
+
+        yield 'whitespace' => [' 5'];
+
+        yield 'beyond the int range' => ['9223372036854775808'];
+
+        yield 'not a number' => ['five'];
+    }
+
+    public function coerceAppliesTheBoundsAfterNormalization(): void
+    {
+        $result = Schema::int()->positive()->coerce()->parse('0');
+
+        Assert::false($result->ok);
+        Assert::same($result->errors[0]->message, 'Int must be at least 1, got 0');
+        Assert::true(Schema::int()->positive()->coerce()->parse('2')->ok);
+    }
+
+    public function coerceKeepsAcceptingRealIntsAndChainsThroughBounds(): void
+    {
+        $schema = Schema::int()->min(0)->max(10)->coerce();
+
+        Assert::same($schema->min, 0);
+        Assert::same($schema->max, 10);
+        Assert::true($schema->coerce);
+        Assert::true($schema->parse(5)->ok);
+        Assert::same($schema->parse('7')->value, 7);
+    }
+
+    public function coerceIsRecordedInTheExport(): void
+    {
+        $export = Schema::int()->coerce()->toJsonSchema();
+
+        Assert::same($export->schema, ['type' => 'integer']);
+        Assert::same($export->nonRepresentable[0]->construct, 'coerce');
+        Assert::same(Schema::int()->toJsonSchema()->nonRepresentable, []);
     }
 }

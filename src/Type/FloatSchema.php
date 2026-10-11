@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Type;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
@@ -24,10 +25,18 @@ use Rasuvaeff\Schema\SchemaType;
  */
 final class FloatSchema extends SchemaType
 {
+    /**
+     * Canonical JSON number strings only: no leading zeros, no
+     * whitespace, no hex — `"1.5"`, `"-2"`, `"1e3"` are in; `"01"`,
+     * `" 1"`, `"0x1A"` are out.
+     */
+    private const string NUMBER_STRING = '(^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?\z)';
+
     public function __construct(
         public readonly ?float $min = null,
         public readonly ?float $max = null,
         public readonly bool $allowInt = false,
+        public readonly bool $coerce = false,
     ) {}
 
     public function min(float $value): self
@@ -40,7 +49,7 @@ final class FloatSchema extends SchemaType
             throw new \InvalidArgumentException('Minimum must not exceed the maximum');
         }
 
-        return new self(min: $value, max: $this->max, allowInt: $this->allowInt);
+        return new self(min: $value, max: $this->max, allowInt: $this->allowInt, coerce: $this->coerce);
     }
 
     public function max(float $value): self
@@ -53,7 +62,7 @@ final class FloatSchema extends SchemaType
             throw new \InvalidArgumentException('Maximum must not be below the minimum');
         }
 
-        return new self(min: $this->min, max: $value, allowInt: $this->allowInt);
+        return new self(min: $this->min, max: $value, allowInt: $this->allowInt, coerce: $this->coerce);
     }
 
     /**
@@ -62,12 +71,27 @@ final class FloatSchema extends SchemaType
      */
     public function allowInt(): self
     {
-        return new self(min: $this->min, max: $this->max, allowInt: true);
+        return new self(min: $this->min, max: $this->max, allowInt: true, coerce: $this->coerce);
+    }
+
+    /**
+     * Accept canonical number strings too (`"1.5"`, `"2"`, `"-3e2"`) and
+     * normalize them to float. Bounds apply after the coercion; the
+     * export keeps `type: number` with a `NonRepresentable` `coerce`
+     * entry.
+     */
+    public function coerce(): self
+    {
+        return new self(min: $this->min, max: $this->max, allowInt: $this->allowInt, coerce: true);
     }
 
     #[\Override]
     public function parse(mixed $input): ParseResult
     {
+        if (\is_string($input) && $this->coerce && \preg_match(self::NUMBER_STRING, $input) === 1) {
+            $input = (float) $input;
+        }
+
         if (\is_int($input) && $this->allowInt) {
             $input = (float) $input;
         }
@@ -138,6 +162,10 @@ final class FloatSchema extends SchemaType
             $schema['maximum'] = $this->max;
         }
 
-        return JsonSchemaExport::of($schema);
+        if (!$this->coerce) {
+            return JsonSchemaExport::of($schema);
+        }
+
+        return JsonSchemaExport::of($schema, [new NonRepresentable([], 'coerce')]);
     }
 }
