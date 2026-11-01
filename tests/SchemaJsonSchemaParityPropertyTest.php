@@ -12,6 +12,7 @@ use Rasuvaeff\PropertyTesting\Property;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\SchemaTrees;
 use Rasuvaeff\Schema\Type\ArraySchema;
@@ -39,6 +40,19 @@ use Testo\Test;
  */
 #[Test]
 #[Covers(Wire::class)]
+#[Covers(ArraySchema::class)]
+#[Covers(DateTimeSchema::class)]
+#[Covers(DiscriminatedSchema::class)]
+#[Covers(LazySchema::class)]
+#[Covers(MapSchema::class)]
+#[Covers(NullableSchema::class)]
+#[Covers(ObjectSchema::class)]
+#[Covers(RefineSchema::class)]
+#[Covers(TransformSchema::class)]
+#[Covers(TupleSchema::class)]
+#[Covers(UnionSchema::class)]
+#[Covers(Unknown::class)]
+#[Covers(JsonSchemaExport::class)]
 final class SchemaJsonSchemaParityPropertyTest
 {
     #[Property(runs: 300)]

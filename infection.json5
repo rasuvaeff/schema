@@ -9,6 +9,24 @@
         "summary": "build/infection-summary.log"
     },
     "testFramework": "testo",
+    // Run with --with-uncovered (composer mutation): Testo credits a test only
+    // with the lines of its #[Covers] targets, so without the flag code that a
+    // test executes but does not name gets no mutants at all. Not Covered
+    // survivors that remain are signature-line mutants (PublicVisibility on
+    // methods, FalseValue on default parameter values): pcov never marks a
+    // method's signature line as executed, so no test can be credited.
+    // Escaped survivors (~24) are equivalents or unkillable: Wire.php's
+    // ReturnRemoval on branches that fall through to the same final
+    // `return $value`; (string)/(int) casts that PHP coerces identically
+    // (Wire.php:86, DiscriminatedSchema.php:65, DateTimeSchema.php:136);
+    // implode() over Stringable objects (JsonSchemaExport.php:42); generator
+    // weights 1 -> 2 (DiscriminatedSchema.php:126, UnionSchema.php:85, only the
+    // distribution changes); default length bounds of the format/pattern
+    // generators and mb_strlen -> strlen on ASCII-only format output
+    // (StringSchema.php:303-323); Gen::stringOf key bounds that dictOf widens
+    // (MapSchema.php:143); and the error-handler plumbing of assertValidPcre
+    // (StringSchema.php:150-159), where the observable result is the same
+    // InvalidArgumentException either way. No ignores.
     "minMsi": 85,
     "mutators": {
         "@default": true

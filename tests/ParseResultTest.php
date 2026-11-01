@@ -14,6 +14,9 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ParseResult::class)]
+#[Covers(ParseError::class)]
+#[Covers(Schema::class)]
+#[Covers(SchemaException::class)]
 final class ParseResultTest
 {
     public function orThrowReturnsTheValueOfASuccess(): void
@@ -83,5 +86,20 @@ final class ParseResultTest
         Assert::same(ParseResult::ok(0)->valueOr(5), 0);
         Assert::null(ParseResult::ok(null)->valueOr('default'));
         Assert::same(ParseResult::failed([new ParseError([], 'x')])->valueOr('default'), 'default');
+    }
+
+    public function summaryShowsThreeErrorsByDefaultAndCountsTheRest(): void
+    {
+        $result = ParseResult::failed([
+            new ParseError(['a'], 'one'),
+            new ParseError(['b'], 'two'),
+            new ParseError(['c'], 'three'),
+            new ParseError(['d'], 'four'),
+            new ParseError(['e'], 'five'),
+        ]);
+
+        Assert::same($result->summary(), '$.a one; $.b two; $.c three; (+2 more)');
+        Assert::same($result->summary(limit: 1), '$.a one; (+4 more)');
+        Assert::same($result->summary(limit: 5), '$.a one; $.b two; $.c three; $.d four; $.e five');
     }
 }

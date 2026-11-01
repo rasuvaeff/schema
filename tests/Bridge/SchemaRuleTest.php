@@ -16,6 +16,7 @@ use Yiisoft\Validator\Validator;
 #[Test]
 #[Covers(SchemaRule::class)]
 #[Covers(SchemaRuleHandler::class)]
+#[Covers(Schema::class)]
 final class SchemaRuleTest
 {
     public function aValidValueHasNoErrors(): void

@@ -51,6 +51,7 @@ use Testo\Test;
 #[Covers(TupleSchema::class)]
 #[Covers(DiscriminatedSchema::class)]
 #[Covers(RoundTrip::class)]
+#[Covers(Wire::class)]
 final class SchemaParityPropertyTest
 {
     #[Property(runs: 300)]

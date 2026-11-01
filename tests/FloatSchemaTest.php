@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\FloatSchema;
 use Testo\Assert;
@@ -15,6 +18,10 @@ use Testo\Test;
 
 #[Test]
 #[Covers(FloatSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
+#[Covers(NonRepresentable::class)]
 final class FloatSchemaTest
 {
     public function parsesAValidFloat(): void

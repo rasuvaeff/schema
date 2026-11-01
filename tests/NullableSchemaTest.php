@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Testo\Assert;
@@ -13,6 +14,8 @@ use Testo\Test;
 
 #[Test]
 #[Covers(NullableSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(JsonSchemaExport::class)]
 final class NullableSchemaTest
 {
     public function acceptsNull(): void

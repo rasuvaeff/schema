@@ -13,6 +13,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(LazySchema::class)]
+#[Covers(Schema::class)]
 final class LazySchemaTest
 {
     public function resolvesThroughTheFactory(): void

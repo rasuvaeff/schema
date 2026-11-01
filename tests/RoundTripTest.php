@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Testing\RoundTrip;
 use Rasuvaeff\Schema\Testing\RoundTripException;
@@ -16,6 +17,8 @@ use Testo\Test;
 #[Test]
 #[Covers(RoundTrip::class)]
 #[Covers(RoundTripException::class)]
+#[Covers(Schema::class)]
+#[Covers(Wire::class)]
 final class RoundTripTest
 {
     public function assertParsesPassesForAGeneratedValue(): void
@@ -195,6 +198,49 @@ final class RoundTripTest
             Assert::same($failure->getMessage(), 'hydrate of the wire form failed (LogicException)');
             Assert::same($failure->getPrevious(), $cause);
             Assert::same($failure->getCode(), 0);
+
+            return;
+        }
+
+        throw new \LogicException('assertConsumerRoundTrip was expected to fail');
+    }
+
+    public function wireRoundTripReportsAWireFormThatDoesNotParseBack(): void
+    {
+        $schema = Schema::int()->transform(
+            static fn(int $value): string => (string) $value,
+            wire: static fn(string $value): string => 'not an int',
+        );
+
+        try {
+            RoundTrip::assertWireRoundTrip($schema, '1');
+        } catch (RoundTripException $failure) {
+            Assert::same($failure->getMessage(), 'parse of the wire form: $ Expected int, got string');
+
+            return;
+        }
+
+        throw new \LogicException('assertWireRoundTrip was expected to fail');
+    }
+
+    public function consumerRoundTripDetectsALossyRehydration(): void
+    {
+        $calls = 0;
+
+        try {
+            RoundTrip::assertConsumerRoundTrip(
+                Schema::string(),
+                'a',
+                static fn(mixed $payload): object => (object) ['value' => $payload],
+                static function (object $object) use (&$calls): string {
+                    $calls++;
+
+                    return $calls === 1 ? 'a' : 'b';
+                },
+            );
+        } catch (RoundTripException $lossy) {
+            Assert::same($lossy->getMessage(), 'the consumer round trip wire → hydrate → wire is lossy');
+            Assert::same($calls, 2);
 
             return;
         }

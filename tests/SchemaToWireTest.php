@@ -7,6 +7,9 @@ namespace Rasuvaeff\Schema\Tests;
 use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Tests\Support\Role;
+use Rasuvaeff\Schema\Tests\Support\UserDto;
+use Rasuvaeff\Schema\Type\EnumSchema;
+use Rasuvaeff\Schema\Unknown;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -18,6 +21,7 @@ use Testo\Test;
  */
 #[Test]
 #[Covers(Wire::class)]
+#[Covers(Schema::class)]
 final class SchemaToWireTest
 {
     public function convertsAnEnumInstanceToItsBackedValue(): void
@@ -109,5 +113,90 @@ final class SchemaToWireTest
         $property = Schema::enum(Role::class)->default('admin');
 
         Assert::same($property->toWire(Role::Viewer), 'viewer');
+    }
+
+    public function onlyAnEnumSchemaProjectsAnEnumInstance(): void
+    {
+        Assert::same(Schema::literal('x')->toWire(Role::Admin), Role::Admin);
+        Assert::same(Schema::enum(Role::class)->toWire('admin'), 'admin');
+    }
+
+    public function aDateTimeIsProjectedOnlyByADateTimeSchema(): void
+    {
+        $moment = new \DateTimeImmutable('2026-10-11T10:15:30.123+00:00');
+
+        Assert::same(Schema::dateTime()->toWire($moment), '2026-10-11T10:15:30.123+00:00');
+        Assert::same(Schema::dateTime()->toWire('not a date'), 'not a date');
+        Assert::same(Schema::string()->toWire($moment), $moment);
+    }
+
+    public function stripDropsUnknownKeysWhilePassthroughKeepsThemRaw(): void
+    {
+        $properties = ['role' => Schema::enum(Role::class)];
+        $value = ['role' => Role::Admin, 'extra' => Role::Viewer];
+
+        Assert::same(
+            Schema::object($properties, Unknown::Strip)->toWire($value),
+            ['role' => 'admin'],
+        );
+        Assert::same(
+            Schema::object($properties, Unknown::Passthrough)->toWire($value),
+            ['role' => 'admin', 'extra' => Role::Viewer],
+        );
+    }
+
+    public function aShortTupleProjectsOnlyThePositionsItHas(): void
+    {
+        $schema = Schema::tuple([Schema::enum(Role::class), Schema::enum(Role::class)]);
+
+        Assert::same($schema->toWire([Role::Admin]), ['admin']);
+        Assert::same($schema->toWire([Role::Admin, Role::Viewer]), ['admin', 'viewer']);
+    }
+
+    public function aUnionWithoutAnAcceptingMemberPassesTheValueThrough(): void
+    {
+        Assert::same(Schema::union([Schema::int(), Schema::bool()])->toWire('x'), 'x');
+    }
+
+    public function discriminatedProjectsThroughTheAcceptingBranch(): void
+    {
+        $schema = Schema::discriminated('kind', [
+            'user' => Schema::object([
+                'kind' => Schema::literal('user'),
+                'role' => Schema::enum(Role::class),
+            ]),
+        ]);
+
+        Assert::same(
+            $schema->toWire(['kind' => 'user', 'role' => Role::Editor]),
+            ['kind' => 'user', 'role' => 'editor'],
+        );
+        Assert::same($schema->toWire(['kind' => 'other']), ['kind' => 'other']);
+    }
+
+    public function refineLazyAndIntoDelegateToTheirInnerSchema(): void
+    {
+        Assert::same(
+            Schema::enum(Role::class)->refine(static fn(Role $role): bool => true, 'never')->toWire(Role::Admin),
+            'admin',
+        );
+        Assert::same(
+            Schema::lazy(static fn(): EnumSchema => Schema::enum(Role::class))->toWire(Role::Viewer),
+            'viewer',
+        );
+
+        $into = Schema::object([
+            'name' => Schema::string(),
+            'age' => Schema::int(),
+            'role' => Schema::enum(Role::class),
+            'bio' => Schema::string(),
+        ])->into(UserDto::class);
+        $expected = ['name' => 'ada', 'age' => 37, 'role' => 'admin', 'bio' => ''];
+
+        Assert::same($into->toWire(new UserDto('ada', 37, Role::Admin)), $expected);
+        Assert::same(
+            $into->toWire(['name' => 'ada', 'age' => 37, 'role' => Role::Admin, 'bio' => '']),
+            $expected,
+        );
     }
 }

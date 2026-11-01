@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Format;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\StringSchema;
 use Testo\Assert;
@@ -16,6 +19,8 @@ use Testo\Test;
 
 #[Test]
 #[Covers(StringSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(JsonSchemaExport::class)]
 final class StringSchemaTest
 {
     public function parsesAValidString(): void
@@ -277,5 +282,143 @@ final class StringSchemaTest
 
         Assert::false($result->ok);
         Assert::same($result->errors[0]->message, 'String is not valid UTF-8');
+    }
+
+    public function theBoundsMayMeetInEitherOrderAndMayBeZero(): void
+    {
+        Assert::same(Schema::string()->max(3)->min(3)->minLength, 3);
+        Assert::same(Schema::string()->min(3)->max(3)->maxLength, 3);
+        Assert::same(Schema::string()->min(0)->minLength, 0);
+        Assert::same(Schema::string()->max(0)->maxLength, 0);
+    }
+
+    public function anInvalidPatternIsRejectedEagerlyWithoutLeakingItsWarning(): void
+    {
+        $leaked = [];
+        \set_error_handler(static function (int $severity, string $message) use (&$leaked): bool {
+            $leaked[] = $message;
+
+            return true;
+        });
+
+        try {
+            Schema::string()->regex('(');
+        } catch (\InvalidArgumentException $exception) {
+            Assert::same($exception->getMessage(), 'Invalid regular expression pattern');
+            Assert::same($leaked, []);
+
+            \trigger_error('after', \E_USER_WARNING);
+            Assert::same($leaked, ['after']);
+
+            return;
+        } finally {
+            \restore_error_handler();
+        }
+
+        throw new \LogicException('an invalid pattern was expected to be rejected');
+    }
+
+    public function anUngeneratablePatternKeepsTheCauseAsThePrevious(): void
+    {
+        try {
+            Schema::string()->regex('^a\\z');
+        } catch (\InvalidArgumentException $exception) {
+            Assert::same($exception->getCode(), 0);
+            Assert::instanceOf($exception->getPrevious(), \InvalidArgumentException::class);
+
+            return;
+        }
+
+        throw new \LogicException('an ungeneratable pattern was expected to be rejected');
+    }
+
+    public function aPatternGeneratorIsFilteredByTheInclusiveBounds(): void
+    {
+        $exact = Schema::string()->regexUnchecked('^a+$', Gen::constant('aaa'))->min(3)->max(3);
+
+        Assert::same($exact->arbitrary()->generate(new Random(1))->value, 'aaa');
+    }
+
+    public function aPatternGeneratorCountsCodePointsNotBytes(): void
+    {
+        $schema = Schema::string()->regexUnchecked('^.+$', Gen::constant('éé'))->min(2)->max(2);
+
+        Assert::same($schema->arbitrary()->generate(new Random(1))->value, 'éé');
+    }
+
+    public function aPatternGeneratorWithOnlyAMaximumStartsAtZero(): void
+    {
+        $schema = Schema::string()->regexUnchecked('^a*$', Gen::constant(''))->max(5);
+
+        Assert::same($schema->arbitrary()->generate(new Random(1))->value, '');
+    }
+
+    public function aPatternGeneratorWithOnlyAMinimumTopsOutAtOneHundred(): void
+    {
+        $atTheCap = Schema::string()->regexUnchecked('^a+$', Gen::constant(\str_repeat('a', 100)))->min(1);
+
+        Assert::same(\strlen($atTheCap->arbitrary()->generate(new Random(1))->value), 100);
+        Assert::true($this->generationFails(
+            Schema::string()->regexUnchecked('^a+$', Gen::constant(\str_repeat('a', 101)))->min(1)->arbitrary(),
+        ));
+    }
+
+    public function aPatternGeneratorOutsideTheBoundsExhaustsTheFilter(): void
+    {
+        $tooShort = Schema::string()->regexUnchecked('^a+$', Gen::constant('a'))->min(2);
+        $tooLong = Schema::string()->regexUnchecked('^a+$', Gen::constant('aaaa'))->max(3);
+
+        Assert::true($this->generationFails($tooShort->arbitrary()));
+        Assert::true($this->generationFails($tooLong->arbitrary()));
+    }
+
+    public function aFormatIsFilteredByTheInclusiveBounds(): void
+    {
+        $schema = Schema::string()->min(36)->max(36)->format(Format::Uuid);
+
+        Assert::same(\strlen($schema->arbitrary()->generate(new Random(1))->value), 36);
+    }
+
+    public function aFormatOutsideTheBoundsExhaustsTheFilter(): void
+    {
+        Assert::true($this->generationFails(Schema::string()->min(37)->format(Format::Uuid)->arbitrary()));
+        Assert::true($this->generationFails(Schema::string()->max(5)->format(Format::Url)->arbitrary()));
+        Assert::true($this->generationFails(Schema::string()->max(35)->format(Format::Uuid)->arbitrary()));
+        Assert::true($this->generationFails(Schema::string()->min(10)->max(35)->format(Format::Uuid)->arbitrary()));
+    }
+
+    public function theDefaultGeneratorSpansZeroToOneHundredCharacters(): void
+    {
+        $lengths = [];
+        $arbitrary = Schema::string()->arbitrary();
+        $random = new Random(41);
+
+        for ($i = 0; $i < 400; $i++) {
+            $lengths[] = \mb_strlen($arbitrary->generate($random)->value);
+        }
+
+        Assert::same(\min($lengths), 0);
+        Assert::same(\max($lengths), 100);
+    }
+
+    public function aZeroMaximumGeneratesOnlyTheEmptyString(): void
+    {
+        $arbitrary = Schema::string()->max(0)->arbitrary();
+        $random = new Random(42);
+
+        for ($i = 0; $i < 20; $i++) {
+            Assert::same($arbitrary->generate($random)->value, '');
+        }
+    }
+
+    private function generationFails(ArbitraryInterface $arbitrary): bool
+    {
+        try {
+            $arbitrary->generate(new Random(1));
+        } catch (\Throwable) {
+            return true;
+        }
+
+        return false;
     }
 }

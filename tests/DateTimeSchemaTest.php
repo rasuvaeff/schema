@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\NonRepresentableException;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\DateTimeSchema;
@@ -17,6 +20,11 @@ use Testo\Test;
 
 #[Test]
 #[Covers(DateTimeSchema::class)]
+#[Covers(NonRepresentableException::class)]
+#[Covers(Schema::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
+#[Covers(NonRepresentable::class)]
 final class DateTimeSchemaTest
 {
     private const string WIRE = '2026-10-11T10:15:30.123+00:00';

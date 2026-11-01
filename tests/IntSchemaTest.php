@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\IntSchema;
 use Testo\Assert;
@@ -15,6 +16,8 @@ use Testo\Test;
 
 #[Test]
 #[Covers(IntSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(JsonSchemaExport::class)]
 final class IntSchemaTest
 {
     #[DataProvider('rejectionProvider')]
@@ -243,5 +246,33 @@ final class IntSchemaTest
 
         Assert::same($schema->parse(987654321)->errors[0]->message, 'Int must be at most 10');
         Assert::same($schema->parse(-987654321)->errors[0]->message, 'Int must be at least -5');
+    }
+
+    public function theDefaultGeneratorSpansMinusThousandToThousand(): void
+    {
+        $values = [];
+        $arbitrary = Schema::int()->arbitrary();
+        $random = new Random(31);
+
+        for ($i = 0; $i < 600; $i++) {
+            $values[] = $arbitrary->generate($random)->value;
+        }
+
+        Assert::same(\min($values), -1000);
+        Assert::same(\max($values), 1000);
+    }
+
+    public function aLoneMinimumGeneratesFromItUpToAtLeastThousand(): void
+    {
+        $values = [];
+        $arbitrary = Schema::int()->min(5000)->arbitrary();
+        $random = new Random(32);
+
+        for ($i = 0; $i < 300; $i++) {
+            $values[] = $arbitrary->generate($random)->value;
+        }
+
+        Assert::same(\min($values), 5000);
+        Assert::same(\max($values), 5000);
     }
 }

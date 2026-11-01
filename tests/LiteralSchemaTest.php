@@ -13,6 +13,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(LiteralSchema::class)]
+#[Covers(Schema::class)]
 final class LiteralSchemaTest
 {
     public function acceptsTheExactValue(): void

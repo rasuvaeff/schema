@@ -4,10 +4,22 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\Schema\Combinator\RefineSchema;
+use Rasuvaeff\Schema\Combinator\TransformSchema;
 use Rasuvaeff\Schema\JsonSchemaExport;
+use Rasuvaeff\Schema\NonRepresentable;
 use Rasuvaeff\Schema\NonRepresentableException;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Tests\Support\Role;
+use Rasuvaeff\Schema\Type\ArraySchema;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
+use Rasuvaeff\Schema\Type\EnumSchema;
+use Rasuvaeff\Schema\Type\LiteralSchema;
+use Rasuvaeff\Schema\Type\MapSchema;
+use Rasuvaeff\Schema\Type\NullableSchema;
+use Rasuvaeff\Schema\Type\ObjectSchema;
+use Rasuvaeff\Schema\Type\TupleSchema;
+use Rasuvaeff\Schema\Type\UnionSchema;
 use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;
@@ -15,6 +27,20 @@ use Testo\Test;
 
 #[Test]
 #[Covers(JsonSchemaExport::class)]
+#[Covers(NonRepresentableException::class)]
+#[Covers(Schema::class)]
+#[Covers(NonRepresentable::class)]
+#[Covers(RefineSchema::class)]
+#[Covers(TransformSchema::class)]
+#[Covers(NullableSchema::class)]
+#[Covers(UnionSchema::class)]
+#[Covers(LiteralSchema::class)]
+#[Covers(TupleSchema::class)]
+#[Covers(DiscriminatedSchema::class)]
+#[Covers(EnumSchema::class)]
+#[Covers(ArraySchema::class)]
+#[Covers(MapSchema::class)]
+#[Covers(ObjectSchema::class)]
 final class JsonSchemaExportTest
 {
     public function stringExportsBoundsPatternAndFormat(): void
@@ -208,5 +234,85 @@ final class JsonSchemaExportTest
             Assert::string($exception->getMessage())->contains('refine @ $.a');
             Assert::string($exception->getMessage())->contains('transform @ $.b');
         }
+    }
+
+    public function unionExportsMembersInOrderAndKeepsTheirEntries(): void
+    {
+        $export = Schema::union([
+            Schema::int()->refine(static fn(int $value): bool => $value > 0, 'positive'),
+            Schema::string(),
+        ])->toJsonSchema();
+
+        Assert::same($export->schema, ['anyOf' => [['type' => 'integer'], ['type' => 'string']]]);
+        Assert::same(\count($export->nonRepresentable), 1);
+        Assert::same((string) $export->nonRepresentable[0], 'refine @ $');
+    }
+
+    public function nullableExportsNullBesideTheInnerFragment(): void
+    {
+        $export = Schema::nullable(
+            Schema::int()->refine(static fn(int $value): bool => true, 'any'),
+        )->toJsonSchema();
+
+        Assert::same($export->schema, ['anyOf' => [['type' => 'null'], ['type' => 'integer']]]);
+        Assert::same((string) $export->nonRepresentable[0], 'refine @ $');
+    }
+
+    public function literalExportsItsConstant(): void
+    {
+        Assert::same(Schema::literal('a')->toJsonSchema()->schema, ['const' => 'a']);
+        Assert::same(Schema::literal(3)->toJsonSchema()->schema, ['const' => 3]);
+        Assert::same(Schema::literal(null)->toJsonSchema()->schema, ['const' => null]);
+    }
+
+    public function nestedRefinementsAreAllRecorded(): void
+    {
+        $export = Schema::int()
+            ->refine(static fn(int $value): bool => true, 'inner')
+            ->refine(static fn(int $value): bool => true, 'outer')
+            ->toJsonSchema();
+
+        Assert::same(\count($export->nonRepresentable), 2);
+    }
+
+    public function entriesCarryTheirPathThroughTuplesUnionsAndDiscriminatedBranches(): void
+    {
+        $transform = Schema::int()->transform(static fn(int $value): string => (string) $value);
+
+        $tuple = Schema::tuple([Schema::string(), $transform])->toJsonSchema(lenient: true);
+        Assert::same((string) $tuple->nonRepresentable[0], 'transform @ $[1]');
+
+        $union = Schema::union([Schema::string(), $transform])->toJsonSchema(lenient: true);
+        Assert::same((string) $union->nonRepresentable[0], 'transform @ $');
+
+        $discriminated = Schema::discriminated('kind', [
+            'a' => Schema::object(['kind' => Schema::literal('a'), 'n' => $transform]),
+        ])->toJsonSchema(lenient: true);
+        Assert::same((string) $discriminated->nonRepresentable[0], 'transform @ $.a.n');
+    }
+
+    public function assertFullyRepresentableJoinsTheEntriesWithASemicolon(): void
+    {
+        $export = JsonSchemaExport::of([], [
+            new NonRepresentable(['a'], 'refine'),
+            new NonRepresentable([], 'transform'),
+        ]);
+
+        try {
+            $export->assertFullyRepresentable();
+        } catch (NonRepresentableException $exception) {
+            Assert::same($exception->getMessage(), 'refine @ $.a; transform @ $');
+
+            return;
+        }
+
+        throw new \LogicException('assertFullyRepresentable was expected to throw');
+    }
+
+    public function aFullyRepresentableExportDoesNotThrow(): void
+    {
+        JsonSchemaExport::of(['type' => 'string'])->assertFullyRepresentable();
+
+        Assert::same(JsonSchemaExport::of(['type' => 'string'])->nonRepresentable, []);
     }
 }

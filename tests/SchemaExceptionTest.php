@@ -15,6 +15,9 @@ use Testo\Test;
 
 #[Test]
 #[Covers(SchemaException::class)]
+#[Covers(ParseError::class)]
+#[Covers(Schema::class)]
+#[Covers(UnionBranch::class)]
 final class SchemaExceptionTest
 {
     public function rendersEveryErrorAsPathPlusMessage(): void

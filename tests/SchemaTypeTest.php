@@ -14,6 +14,7 @@ use Testo\Test;
 #[Test]
 #[Covers(SchemaType::class)]
 #[Covers(Json::class)]
+#[Covers(Schema::class)]
 final class SchemaTypeTest
 {
     public function parseJsonDecodesAndParses(): void

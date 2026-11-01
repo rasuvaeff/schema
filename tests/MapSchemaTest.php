@@ -15,6 +15,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(MapSchema::class)]
+#[Covers(Schema::class)]
 final class MapSchemaTest
 {
     public function parsesEveryEntry(): void
@@ -117,5 +118,63 @@ final class MapSchemaTest
         for ($i = 0; $i < 25; $i++) {
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
+    }
+
+    public function theMinimumCountMayEqualTheMaximum(): void
+    {
+        Assert::same(Schema::mapOf(Schema::int())->maxCount(2)->minCount(2)->minCount, 2);
+        Assert::true(Schema::mapOf(Schema::int())->maxCount(2)->parse(['a' => 1, 'b' => 2])->ok);
+        Assert::false(Schema::mapOf(Schema::int())->maxCount(2)->parse(['a' => 1, 'b' => 2, 'c' => 3])->ok);
+    }
+
+    public function theDefaultGeneratorSpansZeroToTwentyEntriesWithNonEmptyKeys(): void
+    {
+        $sizes = [];
+        $keyLengths = [];
+        $arbitrary = Schema::mapOf(Schema::int())->arbitrary();
+        $random = new Random(21);
+
+        for ($i = 0; $i < 600; $i++) {
+            $map = $arbitrary->generate($random)->value;
+            $sizes[] = \count($map);
+
+            foreach (\array_keys($map) as $key) {
+                $keyLengths[] = \strlen((string) $key);
+            }
+        }
+
+        Assert::same(\min($sizes), 0);
+        Assert::same(\max($sizes), 20);
+        Assert::same(\min($keyLengths), 1);
+    }
+
+    public function theGeneratorHonorsAMinimumWithoutAMaximum(): void
+    {
+        $arbitrary = Schema::mapOf(Schema::int())->minCount(3)->arbitrary();
+        $random = new Random(22);
+
+        for ($i = 0; $i < 200; $i++) {
+            $count = \count($arbitrary->generate($random)->value);
+
+            Assert::true($count >= 3 && $count <= 20);
+        }
+    }
+
+    public function exportsTheCountsOnlyWhenSet(): void
+    {
+        $values = ['type' => 'integer'];
+
+        Assert::same(
+            Schema::mapOf(Schema::int())->toJsonSchema()->schema,
+            ['type' => 'object', 'additionalProperties' => $values],
+        );
+        Assert::same(
+            Schema::mapOf(Schema::int())->minCount(1)->toJsonSchema()->schema,
+            ['type' => 'object', 'additionalProperties' => $values, 'minProperties' => 1],
+        );
+        Assert::same(
+            Schema::mapOf(Schema::int())->maxCount(2)->toJsonSchema()->schema,
+            ['type' => 'object', 'additionalProperties' => $values, 'maxProperties' => 2],
+        );
     }
 }

@@ -22,6 +22,10 @@ use function Rasuvaeff\Understudy\when;
 
 #[Test]
 #[Covers(UnionSchema::class)]
+#[Covers(ParseError::class)]
+#[Covers(ParseResult::class)]
+#[Covers(Schema::class)]
+#[Covers(SchemaException::class)]
 final class UnionSchemaTest
 {
     public function firstMatchingMemberWins(): void
