@@ -13,7 +13,8 @@ Runtime deps: `ext-mbstring`, `rasuvaeff/property-testing-core ^1.2`.
 - `default($v)` is validated against the schema at construction
   (InvalidArgumentException on the spot) and stored normalized; implies
   `optional()`.
-- Error messages never embed input values — kinds and sizes only.
+- Error messages never embed input values — kinds and sizes only (int/float
+  bound errors name the bound: `Int must be at least 18`).
 - Combinator order: constraints/combinators first, `optional()`/`default()` last.
 - Union tries members in declaration order, first success wins.
 
@@ -29,6 +30,7 @@ $schema = Schema::object([
     'created_at' => Schema::dateTime()->min($epoch),      // RFC 3339 wire, DateTimeImmutable domain
     'active' => Schema::bool(),
     'kind' => Schema::literal('creator'),                  // strict ===
+    'state' => Schema::literals(['pending', 'paid']),      // one of a set, strict ===
     'role' => Schema::enum(Role::class),                   // backed enum
     'meta' => Schema::json(),                              // json_decode domain
     'tags' => Schema::arrayOf(Schema::string()->min(1))->maxCount(20),
@@ -42,8 +44,27 @@ $schema = Schema::object([
     'point' => Schema::tuple([Schema::float(), Schema::float()]),
     'bio' => Schema::string()->max(1000)->default(''),     // ≡ optional
     'note' => Schema::string()->optional(),                // key may be absent
-], additionalProperties: false);
+], unknown: Unknown::Reject);   // default; Unknown::Strip drops, ::Passthrough keeps
 ```
+
+### Unknown keys / composition
+
+```php
+use Rasuvaeff\Schema\Unknown;
+
+$schema->unknown(Unknown::Strip);              // same shape, another mode
+$schema->requireAnyOf('email', 'phone');       // >= 1 present (default counts); accumulates
+$schema->extend([...]);                        // add / replace properties
+$schema->pick('id', 'email');                  // keep (undeclared name → InvalidArgumentException)
+$schema->omit('phone');                        // drop; pick/omit prune requireAnyOf groups
+$schema->partial();                            // every key optional; defaults stay
+```
+
+Reject → error `Unknown property "x"` at `$.x`, export `additionalProperties:
+false`; Strip → dropped, export `true` + `strip` NonRepresentable;
+Passthrough → kept raw in the result, export `true`. requireAnyOf error:
+`At least one of "email", "phone" is required` at `$`; export `anyOf:
+[{required:[email]},{required:[phone]}]` (several groups → `allOf`).
 
 ### parse / parseOrThrow
 
@@ -54,6 +75,11 @@ $result->value;                         // parsed (normalized) value when ok
 $result->errors;                        // list<ParseError>
 
 $schema->parseOrThrow($input);          // throws SchemaException (all errors)
+
+$schema->parseJson($json);              // decode + parse; bad JSON → `Invalid JSON (…)` at `$`
+$result->orThrow();                     // value or SchemaException
+$result->summary(limit: 3, separator: '; ');  // '$.a msg; $.b msg; (+N more)'; '' when ok
+(string) $error;                        // '$.path message'
 ```
 
 `SchemaException extends InvalidArgumentException` (invalid input, not a
@@ -151,6 +177,9 @@ schema (honest superset) + entry; transform → declared codec.
   rejected up-front (`String is not valid UTF-8`); a PCRE engine failure is
   reported as `Pattern check failed (PCRE engine error: …)`, never as a
   plain mismatch
+- literals: `Schema::literals([...])` — non-empty, strictly distinct, finite;
+  error `Expected one of: 'a', 'b'`; export `{enum: [...]}`; generator
+  `Gen::elements`
 - int: `min(int)`, `max(int)`, `positive()` (>= 1, thin alias of `min(1)`), `nonNegative()` (>= 0),
   `coerce()` (canonical int strings `"5"`/`"-3"` → int; no leading zeros, no `+`, no
   whitespace, no overflow; bounds apply after coercion; export keeps `type: integer`
@@ -186,10 +215,9 @@ schema (honest superset) + entry; transform → declared codec.
   branch paths too
 - bool: `coerce()` (`"true"`/`"1"` → true, `"false"`/`"0"` → false; case-sensitive;
   anything else rejected)
-- object: `additionalProperties(bool $allow = true)`, `strip()` (drop unknown
-  keys silently — third mode, mutually exclusive with additionalProperties;
-  export stays `additionalProperties: true` + `NonRepresentable` `strip` entry;
-  generator still emits only known keys), `into(Dto::class)` → `IntoSchema`:
+- object: `unknown(Unknown)` (generator emits only declared keys in every
+  mode), `requireAnyOf()`, `extend()`, `pick()`, `omit()`, `partial()`,
+  `into(Dto::class)` → `IntoSchema`:
   parsed properties go to the DTO constructor as named arguments (after
   defaults/strip); constructor exception → parse error with class names only;
   export and `toWire()` (over `get_object_vars()`) stay the object's; a DTO
@@ -197,6 +225,46 @@ schema (honest superset) + entry; transform → declared codec.
 - dateTime generator emits millisecond-precision moments within the bounds
   aligned inwards; bounds inside one millisecond are rejected at construction
 - property modifiers: `optional()`, `default(mixed $validated)`
+
+### Psalm plugin
+
+`<pluginClass class="Rasuvaeff\Schema\Psalm\Plugin"/>` in psalm.xml (needs
+`vimeo/psalm` ^6). `Schema::object([...])` → `ObjectSchema<array{...}>`:
+bare/defaulted key `k: T`, `->optional()` `k?: T`, a variable property
+`k?: T`, Passthrough → open shape `...<string, mixed>`. Carried by extend/
+pick/omit/partial/unknown/requireAnyOf. union/tuple/discriminated/lazy/json
+stay mixed/list<mixed>/array<string,mixed>. Unreadable declaration →
+`array<string, mixed>`.
+
+### yiisoft/validator bridge
+
+```php
+use Rasuvaeff\Schema\Bridge\YiiValidator\SchemaRule;
+
+(new Validator())->validate($data, ['payload' => [new SchemaRule($schema)]]);
+// errors at 'payload.items.1.sku'; params: path ('$.items[1].sku'), pointer
+// skipOnEmpty / skipOnError / when supported; messages added untranslated
+```
+
+### Recipe: event = one schema
+
+```php
+public static function schema(): IntoSchema   // IntoSchema<self>
+{
+    return Schema::object([...], unknown: Unknown::Strip)->into(self::class);
+}
+self::schema()->parseJson($json)->orThrow();  // fromWire
+self::schema()->toWire($this);                // toPayload (reads public props)
+RoundTrip::assertWireRoundTrip(self::schema(), Gen::draw(self::schema()->arbitrary()));
+```
+
+### Stability (1.x)
+
+Frozen: @api surface, parse semantics, error paths/segments, no input values
+in messages, parity + wire laws, toWire as inverse of parse, JSON Schema
+dialect and NonRepresentable constructs. May change in a minor: message
+texts, exact export fragment for the same set, generator distribution,
+anything @internal.
 
 ### Testing helpers
 

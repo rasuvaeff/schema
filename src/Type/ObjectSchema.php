@@ -16,45 +16,57 @@ use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\SchemaType;
+use Rasuvaeff\Schema\Unknown;
 
 /**
  * A fixed shape: declared properties, each required, optional or
- * defaulted; and one of three unknown-key modes — rejected by default,
- * passed through into the result by `additionalProperties()`, or
- * dropped silently by `strip()`.
+ * defaulted; one {@see Unknown} mode for undeclared keys — rejected by
+ * default, dropped by `Unknown::Strip`, passed through into the result by
+ * `Unknown::Passthrough`; and optional "at least one of" groups
+ * ({@see requireAnyOf()}).
  *
  * Parse semantics pinned by the package docs: an absent optional key is
  * **absent from the result** (not null); a defaulted key is always
- * present, carrying the validated, normalized default.
+ * present, carrying the validated, normalized default; the result keeps
+ * the declaration order of the properties.
  *
- * @extends SchemaType<array<string, mixed>>
+ * `TShape` is the parsed array shape. Plain Psalm infers the bound
+ * (`array<string, mixed>`); with the package's Psalm plugin
+ * (`Rasuvaeff\Schema\Psalm\Plugin`) `Schema::object([...])` infers the
+ * exact `array{...}` shape.
+ *
+ * @template TShape of array<string, mixed>
+ *
+ * @extends SchemaType<TShape>
  *
  * @api
  */
 final class ObjectSchema extends SchemaType
 {
-    /** @var array<string, ObjectProperty> */
+    /**
+     * @var array<array-key, ObjectProperty> declared names; a numeric name
+     *     like "0" is an int key (PHP array semantics) and still an object key
+     */
     public readonly array $properties;
 
     /**
-     * @param array<string, SchemaInterface> $properties bare schemas are
-     *     required; `->optional()`/`->default()` wrap into
+     * @var list<non-empty-list<string>> "at least one of" groups, each a
+     *     list of declared property names
+     */
+    public readonly array $anyOf;
+
+    /**
+     * @param array<array-key, SchemaInterface> $properties bare schemas
+     *     are required; `->optional()`/`->default()` wrap into
      *     {@see ObjectProperty}
-     * @param bool $additionalProperties allow unknown keys through
-     *     (default: reject them)
-     * @param bool $strip drop unknown keys silently instead of rejecting
-     *     them — the third mode, mutually exclusive with
-     *     `$additionalProperties`
+     * @param list<list<string>> $anyOf "at least one of" groups, each
+     *     non-empty; every name must be a declared property
      */
     public function __construct(
         array $properties,
-        public readonly bool $additionalProperties = false,
-        public readonly bool $strip = false,
+        public readonly Unknown $unknown = Unknown::Reject,
+        array $anyOf = [],
     ) {
-        if ($additionalProperties && $strip) {
-            throw new \InvalidArgumentException('Strip and additionalProperties are mutually exclusive — pick one unknown-key mode');
-        }
-
         $normalized = [];
 
         foreach ($properties as $name => $property) {
@@ -67,24 +79,99 @@ final class ObjectSchema extends SchemaType
                 : new ObjectProperty($property);
         }
 
-        $this->properties = $normalized;
-    }
+        foreach ($anyOf as $group) {
+            if ($group === []) {
+                throw new \InvalidArgumentException('An "at least one of" group needs at least one property');
+            }
 
-    public function additionalProperties(bool $allow = true): self
-    {
-        return new self(properties: $this->properties, additionalProperties: $allow, strip: false);
+            foreach ($group as $name) {
+                if (!\array_key_exists($name, $normalized)) {
+                    throw new \InvalidArgumentException(\sprintf('Unknown property "%s" in an "at least one of" group', $name));
+                }
+            }
+        }
+
+        $this->properties = $normalized;
+        /** @var list<non-empty-list<string>> $anyOf checked above */
+        $this->anyOf = $anyOf;
     }
 
     /**
-     * The third unknown-key mode: drop them and keep the known ones —
-     * the shape for parsing external payloads you only trust partially.
-     * Mutually exclusive with `additionalProperties()`; the export keeps
-     * `additionalProperties: true` (validators accept what the parser
-     * strips) and records the drop as a `NonRepresentable` entry.
+     * The same shape with another unknown-key mode.
+     *
+     * @return ObjectSchema<array<string, mixed>>
      */
-    public function strip(): self
+    public function unknown(Unknown $mode): self
     {
-        return new self(properties: $this->properties, additionalProperties: false, strip: true);
+        return new self(properties: $this->properties, unknown: $mode, anyOf: $this->anyOf);
+    }
+
+    /**
+     * Demand that at least one of `$names` is present in the input (a
+     * defaulted property always counts as present). Calls accumulate:
+     * every group must be satisfied. The generator satisfies the groups
+     * constructively; the export adds `anyOf: [{required: [name]}, ...]`.
+     *
+     * @return ObjectSchema<TShape>
+     */
+    public function requireAnyOf(string $name, string ...$names): self
+    {
+        /** @var ObjectSchema<TShape> $schema the shape is unchanged */
+        $schema = new self(properties: $this->properties, unknown: $this->unknown, anyOf: [...$this->anyOf, [$name, ...\array_values($names)]]);
+
+        return $schema;
+    }
+
+    /**
+     * Add properties or replace declared ones (same name); the unknown-key
+     * mode and the groups are kept.
+     *
+     * @param array<string, SchemaInterface> $properties
+     *
+     * @return ObjectSchema<array<string, mixed>>
+     */
+    public function extend(array $properties): self
+    {
+        return new self(properties: \array_replace($this->properties, $properties), unknown: $this->unknown, anyOf: $this->anyOf);
+    }
+
+    /**
+     * Keep only the named properties. Every name must be declared; group
+     * members that are dropped leave their groups, an emptied group goes.
+     *
+     * @return ObjectSchema<array<string, mixed>>
+     */
+    public function pick(string $name, string ...$names): self
+    {
+        return $this->only($this->declared([$name, ...$names]), keep: true);
+    }
+
+    /**
+     * Drop the named properties. Every name must be declared; group
+     * members that are dropped leave their groups, an emptied group goes.
+     *
+     * @return ObjectSchema<array<string, mixed>>
+     */
+    public function omit(string $name, string ...$names): self
+    {
+        return $this->only($this->declared([$name, ...$names]), keep: false);
+    }
+
+    /**
+     * Every property optional — the shape of a PATCH body. A defaulted
+     * property keeps its default (it is optional already).
+     *
+     * @return ObjectSchema<array<string, mixed>>
+     */
+    public function partial(): self
+    {
+        $properties = [];
+
+        foreach ($this->properties as $name => $property) {
+            $properties[$name] = $property->optional();
+        }
+
+        return new self(properties: $properties, unknown: $this->unknown, anyOf: $this->anyOf);
     }
 
     /**
@@ -116,7 +203,7 @@ final class ObjectSchema extends SchemaType
             ]);
         }
 
-        /** @var array<string, mixed> $values */
+        /** @var array<array-key, mixed> $values */
         $values = [];
         $errors = [];
 
@@ -128,35 +215,33 @@ final class ObjectSchema extends SchemaType
                     $values[$name] = $result->value;
                 } else {
                     foreach ($result->errors as $error) {
-                        $errors[] = $error->withSegment($name);
+                        // PHP turns a key like "0" into int 0; an object
+                        // key is a string segment ($.0, not $[0]).
+                        $errors[] = $error->withSegment((string) $name);
                     }
                 }
             } elseif ($property->hasDefault) {
                 $values[$name] = $property->default;
             } elseif (!$property->optional) {
-                $errors[] = new ParseError([$name], \sprintf('Required property "%s" is missing', $name));
+                $errors[] = new ParseError([(string) $name], \sprintf('Required property "%s" is missing', $name));
             }
         }
 
-        if ($this->additionalProperties) {
-            // Pass-through: tolerated unknown keys stay in the result —
-            // the mode for maps you round-trip. Strip drops them below
-            // by never reaching this branch.
-            foreach ($input as $key => $item) {
-                if (!\array_key_exists($key, $this->properties)) {
-                    $values[(string) $key] = $item;
-                }
+        foreach (\array_keys($input) as $key) {
+            if (\array_key_exists($key, $this->properties)) {
+                continue;
+            }
+
+            if ($this->unknown === Unknown::Passthrough) {
+                $values[$key] = $input[$key];
+            } elseif ($this->unknown === Unknown::Reject) {
+                $errors[] = new ParseError([(string) $key], \sprintf('Unknown property "%s"', $key));
             }
         }
 
-        if (!$this->additionalProperties && !$this->strip) {
-            foreach (\array_keys($input) as $key) {
-                if (!\array_key_exists($key, $this->properties)) {
-                    $errors[] = new ParseError(
-                        [\is_string($key) ? $key : (string) $key],
-                        \sprintf('Unknown property "%s"', $key),
-                    );
-                }
+        foreach ($this->anyOf as $group) {
+            if (!$this->satisfied($group, $input)) {
+                $errors[] = new ParseError([], \sprintf('At least one of %s is required', $this->quoted($group)));
             }
         }
 
@@ -164,6 +249,7 @@ final class ObjectSchema extends SchemaType
             return ParseResult::failed($errors);
         }
 
+        /** @var TShape $values */
         return ParseResult::ok($values);
     }
 
@@ -173,7 +259,7 @@ final class ObjectSchema extends SchemaType
         $result = $this->parse($input);
 
         if ($result->ok) {
-            /** @var array<string, mixed> $value */
+            /** @var TShape $value */
             $value = $result->value;
 
             return $value;
@@ -186,6 +272,7 @@ final class ObjectSchema extends SchemaType
     public function arbitrary(): ArbitraryInterface
     {
         if ($this->properties === []) {
+            /** @var ArbitraryInterface<TShape> */
             return Gen::constant([]);
         }
 
@@ -205,33 +292,72 @@ final class ObjectSchema extends SchemaType
             }
         }
 
+        // One fallback per group: a chosen member and a value for it,
+        // inserted only when the random draw left the whole group absent —
+        // the groups are satisfied by construction, never by filtering.
+        /** @var list<ArbitraryInterface<array{list<string>, array<string, mixed>}>> $fallbacks */
+        $fallbacks = [];
+
+        foreach ($this->anyOf as $group) {
+            $properties = $this->properties;
+            $fallbacks[] = Gen::flatMap(
+                Gen::elements($group),
+                static fn(string $name): ArbitraryInterface => Gen::map(
+                    $properties[$name]->schema->arbitrary(),
+                    static fn(mixed $value): array => [$group, [$name => $value]],
+                ),
+            );
+        }
+
+        $order = \array_keys($this->properties);
+
+        /** @var ArbitraryInterface<TShape> */
         return Gen::map(
-            Gen::tuple(...$generators),
+            Gen::tuple(Gen::tuple(...$generators), $fallbacks === [] ? Gen::constant([]) : Gen::tuple(...$fallbacks)),
             /**
-             * @param list<mixed> $parts
+             * @param list<mixed> $drawn the properties' parts, then the
+             *     groups' fallbacks
              *
-             * @return array<string, mixed>
+             * @return array<array-key, mixed>
              */
-            static function (array $parts): array {
-                /** @var array<string, mixed> $merged */
+            static function (array $drawn) use ($order): array {
+                /** @var array{list<mixed>, list<mixed>} $drawn */
+                [$parts, $fallbacks] = $drawn;
+
+                /** @var array<array-key, mixed> $merged */
                 $merged = [];
 
                 foreach ($parts as $part) {
-                    /** @var array<string, mixed> $part */
+                    /** @var array<array-key, mixed> $part */
                     foreach (\array_keys($part) as $key) {
                         $merged[$key] = $part[$key];
                     }
                 }
 
-                return $merged;
+                foreach ($fallbacks as $fallback) {
+                    /** @var array{0: list<string>, 1: array<string, mixed>} $fallback */
+                    if (\array_intersect_key($merged, \array_flip($fallback[0])) === []) {
+                        $merged = \array_replace($merged, $fallback[1]);
+                    }
+                }
+
+                $ordered = [];
+
+                foreach ($order as $key) {
+                    if (\array_key_exists($key, $merged)) {
+                        $ordered[$key] = $merged[$key];
+                    }
+                }
+
+                return $ordered;
             },
         );
     }
 
     /**
-     * @return Closure(mixed): array<string, mixed>
+     * @return Closure(mixed): array<array-key, mixed>
      */
-    private function entry(string $name): Closure
+    private function entry(int|string $name): Closure
     {
         return static fn(mixed $value): array => [$name => $value];
     }
@@ -248,7 +374,7 @@ final class ObjectSchema extends SchemaType
             $properties[$name] = $child->schema;
 
             foreach ($child->nonRepresentable as $entry) {
-                $nonRepresentable[] = $entry->withSegment($name);
+                $nonRepresentable[] = $entry->withSegment((string) $name);
             }
 
             if ($property->hasDefault) {
@@ -263,14 +389,26 @@ final class ObjectSchema extends SchemaType
         $schema = [
             'type' => 'object',
             'properties' => $properties,
-            'additionalProperties' => $this->additionalProperties || $this->strip,
+            'additionalProperties' => $this->unknown !== Unknown::Reject,
         ];
 
         if ($required !== []) {
             $schema['required'] = $required;
         }
 
-        if ($this->strip) {
+        $groups = [];
+
+        foreach ($this->anyOf as $group) {
+            $groups[] = ['anyOf' => \array_map(static fn(string $name): array => ['required' => [$name]], $group)];
+        }
+
+        if (\count($groups) === 1) {
+            $schema['anyOf'] = $groups[0]['anyOf'];
+        } elseif ($groups !== []) {
+            $schema['allOf'] = $groups;
+        }
+
+        if ($this->unknown === Unknown::Strip) {
             // The fragment is an honest superset: a validator accepts
             // documents whose extra keys the parser silently drops. The
             // drop itself is not expressible — recorded, not thrown.
@@ -278,5 +416,79 @@ final class ObjectSchema extends SchemaType
         }
 
         return JsonSchemaExport::of($schema, $nonRepresentable);
+    }
+
+    /**
+     * @param non-empty-list<string> $group
+     * @param array<array-key, mixed> $input
+     */
+    private function satisfied(array $group, array $input): bool
+    {
+        foreach ($group as $name) {
+            if (\array_key_exists($name, $input) || $this->properties[$name]->hasDefault) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<string> $names
+     */
+    private function quoted(array $names): string
+    {
+        return \implode(', ', \array_map(static fn(string $name): string => '"' . $name . '"', $names));
+    }
+
+    /**
+     * @param array<array-key, string> $names
+     *
+     * @return array<array-key, string>
+     */
+    private function declared(array $names): array
+    {
+        foreach ($names as $name) {
+            if (!\array_key_exists($name, $this->properties)) {
+                throw new \InvalidArgumentException(\sprintf('Unknown property "%s"', $name));
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * @param array<array-key, string> $names
+     * @param bool $keep keep the named properties (pick) or drop them (omit)
+     *
+     * @return ObjectSchema<array<string, mixed>>
+     */
+    private function only(array $names, bool $keep): self
+    {
+        $properties = [];
+
+        foreach ($this->properties as $name => $property) {
+            if (\in_array((string) $name, $names, strict: true) === $keep) {
+                $properties[$name] = $property;
+            }
+        }
+
+        $anyOf = [];
+
+        foreach ($this->anyOf as $group) {
+            $left = [];
+
+            foreach ($group as $member) {
+                if (\array_key_exists($member, $properties)) {
+                    $left[] = $member;
+                }
+            }
+
+            if ($left !== []) {
+                $anyOf[] = $left;
+            }
+        }
+
+        return new self(properties: $properties, unknown: $this->unknown, anyOf: $anyOf);
     }
 }

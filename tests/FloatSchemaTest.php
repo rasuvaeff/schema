@@ -77,12 +77,12 @@ final class FloatSchemaTest
 
         yield 'below min' => [
             -2.5,
-            'Float must be at least -2, got -2.5',
+            'Float must be at least -2',
         ];
 
         yield 'above max' => [
             4.5,
-            'Float must be at most 4, got 4.5',
+            'Float must be at most 4',
         ];
     }
 
@@ -103,7 +103,7 @@ final class FloatSchemaTest
         $schema = Schema::float()->min(0.5)->max(3.5)->allowInt();
 
         Assert::false($schema->parse(4)->ok);
-        Assert::same($schema->parse(4)->errors[0]->message, 'Float must be at most 3.5, got 4');
+        Assert::same($schema->parse(4)->errors[0]->message, 'Float must be at most 3.5');
         Assert::false($schema->parse(0)->ok);
     }
 
@@ -262,7 +262,7 @@ final class FloatSchemaTest
         Assert::true($schema->parse('0.5')->ok);
         Assert::same(
             $schema->parse('1.5')->errors[0]->message,
-            'Float must be at most 1, got 1.5',
+            'Float must be at most 1',
         );
     }
 
@@ -282,5 +282,12 @@ final class FloatSchemaTest
         Assert::same($export->schema, ['type' => 'number']);
         Assert::same($export->nonRepresentable[0]->construct, 'coerce');
         Assert::same(Schema::float()->toJsonSchema()->nonRepresentable, []);
+    }
+    public function boundMessagesNeverEchoTheInput(): void
+    {
+        $schema = Schema::float()->min(-5.0)->max(10.0);
+
+        Assert::same($schema->parse(98765.4321)->errors[0]->message, 'Float must be at most 10');
+        Assert::same($schema->parse(-98765.4321)->errors[0]->message, 'Float must be at least -5');
     }
 }

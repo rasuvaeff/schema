@@ -47,10 +47,8 @@ final class DiscriminatedSchema extends SchemaType
             throw new \InvalidArgumentException('Discriminated union requires at least one branch');
         }
 
-        foreach ($branches as $tag => $branch) {
-            if (!$branch instanceof ObjectSchema) {
-                throw new \InvalidArgumentException('Discriminated branches must be object schemas');
-            }
+        foreach ($branches as $tag => $candidate) {
+            $branch = $this->objectBranch($candidate);
 
             $declared = $branch->properties[$property] ?? null;
 
@@ -150,5 +148,17 @@ final class DiscriminatedSchema extends SchemaType
         // oneOf, not anyOf: the branches are disjoint by construction —
         // the eager literal check is what buys the stronger keyword.
         return JsonSchemaExport::of(['oneOf' => $oneOf], $nonRepresentable);
+    }
+
+    /**
+     * The runtime guard for callers without static analysis.
+     */
+    private function objectBranch(mixed $candidate): ObjectSchema
+    {
+        if (!$candidate instanceof ObjectSchema) {
+            throw new \InvalidArgumentException('Discriminated branches must be object schemas');
+        }
+
+        return $candidate;
     }
 }

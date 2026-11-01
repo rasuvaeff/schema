@@ -39,6 +39,8 @@ final readonly class ObjectProperty implements SchemaInterface
 
     /**
      * Idempotent: an already optional property stays as it was.
+     *
+     * @return self<TValue>
      */
     public function optional(): self
     {
@@ -58,6 +60,8 @@ final readonly class ObjectProperty implements SchemaInterface
      *
      *
      * @psalm-param TValue $value
+     *
+     * @return self<TValue>
      */
     public function default(mixed $value): self
     {
@@ -78,6 +82,12 @@ final readonly class ObjectProperty implements SchemaInterface
     public function parse(mixed $input): ParseResult
     {
         return $this->schema->parse($input);
+    }
+
+    #[\Override]
+    public function parseJson(string $json): ParseResult
+    {
+        return $this->schema->parseJson($json);
     }
 
     #[\Override]

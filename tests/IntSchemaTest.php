@@ -42,12 +42,12 @@ final class IntSchemaTest
 
         yield 'below min' => [
             1,
-            'Int must be at least 2, got 1',
+            'Int must be at least 2',
         ];
 
         yield 'above max' => [
             11,
-            'Int must be at most 10, got 11',
+            'Int must be at most 10',
         ];
     }
 
@@ -111,7 +111,7 @@ final class IntSchemaTest
 
         Assert::true($schema->parse(1)->ok);
         Assert::false($schema->parse(0)->ok);
-        Assert::same($schema->parse(0)->errors[0]->message, 'Int must be at least 1, got 0');
+        Assert::same($schema->parse(0)->errors[0]->message, 'Int must be at least 1');
         Assert::false($schema->parse(-5)->ok);
         Assert::same($schema->min, 1);
     }
@@ -122,7 +122,7 @@ final class IntSchemaTest
 
         Assert::true($schema->parse(0)->ok);
         Assert::false($schema->parse(-1)->ok);
-        Assert::same($schema->parse(-1)->errors[0]->message, 'Int must be at least 0, got -1');
+        Assert::same($schema->parse(-1)->errors[0]->message, 'Int must be at least 0');
         Assert::same($schema->min, 0);
     }
 
@@ -214,7 +214,7 @@ final class IntSchemaTest
         $result = Schema::int()->positive()->coerce()->parse('0');
 
         Assert::false($result->ok);
-        Assert::same($result->errors[0]->message, 'Int must be at least 1, got 0');
+        Assert::same($result->errors[0]->message, 'Int must be at least 1');
         Assert::true(Schema::int()->positive()->coerce()->parse('2')->ok);
     }
 
@@ -236,5 +236,12 @@ final class IntSchemaTest
         Assert::same($export->schema, ['type' => 'integer']);
         Assert::same($export->nonRepresentable[0]->construct, 'coerce');
         Assert::same(Schema::int()->toJsonSchema()->nonRepresentable, []);
+    }
+    public function boundMessagesNeverEchoTheInput(): void
+    {
+        $schema = Schema::int()->min(-5)->max(10);
+
+        Assert::same($schema->parse(987654321)->errors[0]->message, 'Int must be at most 10');
+        Assert::same($schema->parse(-987654321)->errors[0]->message, 'Int must be at least -5');
     }
 }

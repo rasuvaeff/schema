@@ -10,6 +10,7 @@ use Rasuvaeff\Schema\Format;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Type\ObjectSchema;
+use Rasuvaeff\Schema\Unknown;
 
 /**
  * Random schema trees for the parity law: whatever shapes these
@@ -17,7 +18,7 @@ use Rasuvaeff\Schema\Type\ObjectSchema;
  */
 final class SchemaTrees
 {
-    private const array LEAVES = ['string', 'int', 'float', 'bool', 'literal', 'enum', 'json', 'refine'];
+    private const array LEAVES = ['string', 'int', 'float', 'bool', 'literal', 'literals', 'enum', 'json', 'refine'];
 
     /**
      * Leaves whose generator lives in the target space (like a bare
@@ -55,6 +56,7 @@ final class SchemaTrees
                 'dateTime' => self::dateTime(),
                 'bool' => Gen::draw(Gen::bool()) ? Schema::bool() : Schema::bool()->coerce(),
                 'literal' => Schema::literal(Gen::draw(Gen::elements(['a', 'b', 1, true]))),
+                'literals' => Schema::literals(Gen::draw(Gen::elements([['a', 'b'], [1, 2, 3], ['x', 1, null]]))),
                 'enum' => Schema::enum(Gen::draw(Gen::elements([Role::class, Suit::class]))),
                 'json' => Schema::json(),
                 'transform' => $invertibleTransforms
@@ -184,6 +186,10 @@ final class SchemaTrees
             };
         }
 
-        return Schema::object($properties, Gen::draw(Gen::bool()));
+        $schema = Schema::object($properties, Gen::draw(Gen::elements([Unknown::Reject, Unknown::Strip, Unknown::Passthrough])));
+
+        // An "at least one of" group over the first two properties: the
+        // generator has to satisfy it constructively.
+        return $count > 1 && Gen::draw(Gen::bool()) ? $schema->requireAnyOf('p0', 'p1') : $schema;
     }
 }

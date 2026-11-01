@@ -60,8 +60,11 @@ foreach ($invalid->errors as $error) {
     \printf("  %s %s (pointer: %s)\n", $error->toPath(), $error->message, $error->toJsonPointer());
 }
 
-// 3. The same schema is a generator: everything it produces parses —
-//    the parity that keeps validators and tests from drifting apart.
+// 3. The same schema is a generator: everything it produces parses back
+//    from its wire form — the parity that keeps validators and tests from
+//    drifting apart. (A dateTime generates DateTimeImmutable, the PHP
+//    domain; parse() takes the RFC 3339 string, so the law goes through
+//    toWire().)
 $random = new Random(42);
 
 for ($i = 0; $i < 3; $i++) {
@@ -70,6 +73,6 @@ for ($i = 0; $i < 3; $i++) {
     \printf(
         "generated #%d: parses=%s\n",
         $i,
-        \var_export($schema->parse($value)->ok, true),
+        \var_export($schema->parse($schema->toWire($value))->ok, true),
     );
 }

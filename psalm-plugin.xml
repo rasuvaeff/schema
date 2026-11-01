@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+    The Psalm plugin's own test: tests/Psalm holds fixtures whose
+    `@psalm-check-type-exact` lines state the shape the plugin must infer.
+    A wrong inference is a CheckType error, so `composer psalm:plugin` (part
+    of `composer build`) fails.
+-->
+<psalm
+    errorLevel="1"
+    findUnusedCode="false"
+    resolveFromConfigFile="true"
+>
+    <projectFiles>
+        <directory name="tests/Psalm"/>
+    </projectFiles>
+    <plugins>
+        <pluginClass class="Rasuvaeff\Schema\Psalm\Plugin"/>
+    </plugins>
+</psalm>

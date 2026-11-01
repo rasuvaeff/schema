@@ -9,8 +9,11 @@ Guidance for AI agents working on this package. Read before changing code.
 with **two ports wired to the same definition** — `parse()` validates runtime
 input (queue payloads, webhooks, third-party responses) and `arbitrary()`
 yields a `rasuvaeff/property-testing-core` generator over the exact same set.
-A JSON Schema export port (`toJsonSchema()`, `JsonSchemaExport`) is planned
-for 1.1. Entry point is the `Schema` facade; types live in `Type\`,
+Two more ports hang off the same tree: `toJsonSchema()` (draft 2020-12
+export, `JsonSchemaExport`) and `toWire()` (PHP domain → wire; `parse()` is
+its inverse). Optional integrations: a Psalm plugin (`Psalm\`, shape
+inference for `Schema::object()`) and a `yiisoft/validator` rule
+(`Bridge\YiiValidator\`). Entry point is the `Schema` facade; types live in `Type\`,
 combinators in `Combinator\`; `ParseResult`/`ParseError` carry structured
 paths (segments — rendered as `$.tags[2]` and RFC 6901 `/tags/2`).
 
@@ -78,6 +81,30 @@ make release-check
   (`get_debug_type`, lengths, counts). Payloads may carry secrets; errors
   travel to logs and Sentry. A transform callback that throws contributes
   its class name only.
+- **Int/float bound messages name the bound, not the input**
+  (`Int must be at most 10`). Lengths and counts are sizes and may appear.
+  `boundMessagesNeverEchoTheInput` pins it.
+- **One `Unknown` mode per object** (`Reject` default, `Strip`,
+  `Passthrough`). Never reintroduce a second mechanism (bool flags, extra
+  methods) for the same choice. `extend`/`pick`/`omit`/`partial`/
+  `requireAnyOf` keep the mode; `pick`/`omit` prune `requireAnyOf` groups.
+- **`requireAnyOf` is satisfied constructively by the generator** (a
+  fallback member per group, inserted only when the draw left the group
+  absent) and the generated keys are re-ordered to declaration order —
+  `toWire → parse → toWire` compares arrays with `===`, key order included.
+- **The Psalm plugin is tested by Psalm, not by Testo.** `tests/Psalm/*`
+  are fixtures with `@psalm-check-type-exact`; `composer psalm:plugin`
+  (part of `build`, config `psalm-plugin.xml`) fails on a wrong inference.
+  Every checked variable is appended to `$this->checked`, or rector's
+  `RemoveUnusedVariableAssignRector` deletes the assignment and the check
+  with it. `src/Psalm` is excluded from Infection (no Testo test executes
+  it). A new combinator with a parsed value type → a mapping in
+  `ObjectShapeProvider::value()` + a fixture line.
+- **Optional dependencies:** `vimeo/psalm` (plugin) and `yiisoft/validator`
+  (bridge) are `suggest` + `require-dev`; their symbols are whitelisted in
+  `composer-require-checker.json`. Nothing outside `src/Psalm` and
+  `src/Bridge` may use them. A Respect bridge is deliberately absent:
+  `respect/validation` 3 needs PHP 8.5, the package supports 8.3.
 - **Union: first success wins, in declaration order.** Overlapping members
   are an authoring error the parser forgives silently.
 - **Combinator order:** `->min(1)->transform(...)->optional()` — property

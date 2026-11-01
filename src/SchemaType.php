@@ -8,6 +8,7 @@ use Closure;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\Schema\Combinator\RefineSchema;
 use Rasuvaeff\Schema\Combinator\TransformSchema;
+use Rasuvaeff\Schema\Internal\Json;
 use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectProperty;
@@ -56,11 +57,27 @@ abstract class SchemaType implements SchemaInterface
     #[\Override]
     abstract public function toJsonSchema(bool $lenient = false): JsonSchemaExport;
 
+    /**
+     * @return ParseResult<TValue>
+     */
+    #[\Override]
+    public function parseJson(string $json): ParseResult
+    {
+        $decoded = Json::decode($json);
+
+        if ($decoded instanceof ParseError) {
+            return ParseResult::failed([$decoded]);
+        }
+
+        return $this->parse($decoded[0]);
+    }
+
     #[\Override]
     public function toWire(mixed $value): mixed
     {
         return Wire::value($this, $value);
     }
+
     /**
      * Validate against the source schema, then map the parsed value
      * through `$transform`. Everything the generator produces lives in the

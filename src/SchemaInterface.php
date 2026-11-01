@@ -9,8 +9,9 @@ use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 /**
  * A schema describes a set of values: it validates runtime input
  * ({@see parse()}), produces a generator over the exact same set
- * ({@see arbitrary()}), and from 1.1 exports its wire form
- * ({@see toJsonSchema()}).
+ * ({@see arbitrary()}), exports its wire form as JSON Schema
+ * ({@see toJsonSchema()}) and projects PHP values back to that wire form
+ * ({@see toWire()} — `parse()` is its inverse).
  *
  * The two ports are one contract: everything {@see arbitrary()} produces
  * must pass {@see parse()} — the parity law, pinned by this package's own
@@ -33,6 +34,15 @@ interface SchemaInterface
      * @return ParseResult<TValue>
      */
     public function parse(mixed $input): ParseResult;
+
+    /**
+     * Decode `$json` and parse the result. Invalid JSON is a parse error
+     * at the root (`Invalid JSON (Syntax error)`), never an exception and
+     * never a misleading type error about `null`.
+     *
+     * @return ParseResult<TValue>
+     */
+    public function parseJson(string $json): ParseResult;
 
     /**
      * Validate `$input` and return the parsed value, or throw a single
