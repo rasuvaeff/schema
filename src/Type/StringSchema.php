@@ -71,8 +71,8 @@ final class StringSchema extends SchemaType
             minLength: $length,
             maxLength: $this->maxLength,
             pattern: $this->pattern,
-            patternGenerator: $this->patternGenerator,
             format: $this->format,
+            patternGenerator: $this->patternGenerator,
         );
     }
 
@@ -90,8 +90,8 @@ final class StringSchema extends SchemaType
             minLength: $this->minLength,
             maxLength: $length,
             pattern: $this->pattern,
-            patternGenerator: $this->patternGenerator,
             format: $this->format,
+            patternGenerator: $this->patternGenerator,
         );
     }
 
@@ -146,8 +146,8 @@ final class StringSchema extends SchemaType
             minLength: $this->minLength,
             maxLength: $this->maxLength,
             pattern: $pattern,
-            patternGenerator: $generator,
             format: $this->format,
+            patternGenerator: $generator,
         );
     }
 
