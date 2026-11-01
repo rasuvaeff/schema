@@ -11,6 +11,7 @@ use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\Role;
 use Rasuvaeff\Schema\Tests\Support\UserDto;
 use Rasuvaeff\Schema\Tests\Support\UserRecord;
+use Rasuvaeff\Schema\Unknown;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
@@ -134,7 +135,7 @@ final class IntoSchemaTest
     {
         $schema = Schema::object([
             'name' => Schema::string()->min(1),
-        ])->strip()->into(UserRecord::class);
+        ], unknown: Unknown::Strip)->into(UserRecord::class);
 
         $result = $schema->parse(['name' => 'ada', 'unknown' => 'dropped']);
 

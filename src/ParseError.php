@@ -21,7 +21,7 @@ namespace Rasuvaeff\Schema;
  *
  * @api
  */
-final readonly class ParseError
+final readonly class ParseError implements \Stringable
 {
     /**
      * @param list<int|string> $segments
@@ -47,6 +47,18 @@ final readonly class ParseError
         }
 
         return new self([$segment, ...$this->segments], $this->message, $branches);
+    }
+
+    /**
+     * `$.tags[2] Expected string, got int` — the path and the message, the
+     * line {@see SchemaException} and {@see ParseResult::summary()} use.
+     * Union branch errors are not inlined here; they stay in
+     * {@see $branches}.
+     */
+    #[\Override]
+    public function __toString(): string
+    {
+        return $this->toPath() . ' ' . $this->message;
     }
 
     /**

@@ -85,4 +85,11 @@ final class ParseErrorTest
 
         Assert::same($error->branches, []);
     }
+
+    public function stringFormIsThePathAndTheMessage(): void
+    {
+        Assert::same((string) new ParseError(['tags', 2], 'Expected string, got int'), '$.tags[2] Expected string, got int');
+        Assert::same((string) new ParseError([], 'boom'), '$ boom');
+        Assert::instanceOf(new ParseError([], 'boom'), \Stringable::class);
+    }
 }

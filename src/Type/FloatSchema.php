@@ -110,13 +110,13 @@ final class FloatSchema extends SchemaType
 
         if ($this->min !== null && $input < $this->min) {
             return ParseResult::failed([
-                new ParseError([], \sprintf('Float must be at least %s, got %s', $this->min, $input)),
+                new ParseError([], \sprintf('Float must be at least %s', $this->min)),
             ]);
         }
 
         if ($this->max !== null && $input > $this->max) {
             return ParseResult::failed([
-                new ParseError([], \sprintf('Float must be at most %s, got %s', $this->max, $input)),
+                new ParseError([], \sprintf('Float must be at most %s', $this->max)),
             ]);
         }
 

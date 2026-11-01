@@ -23,6 +23,7 @@ use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
 use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
+use Rasuvaeff\Schema\Unknown;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -118,7 +119,7 @@ final class SchemaJsonSchemaParityPropertyTest
 
                 if ($property !== null) {
                     $object->{$key} = self::toJson($property->schema, $item);
-                } elseif (!$schema->strip) {
+                } elseif ($schema->unknown !== Unknown::Strip) {
                     $object->{$key} = \is_array($item) ? self::toSchema($item) : $item;
                 }
             }

@@ -18,6 +18,7 @@ use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
 use Rasuvaeff\Schema\Type\TupleSchema;
 use Rasuvaeff\Schema\Type\UnionSchema;
+use Rasuvaeff\Schema\Unknown;
 
 /**
  * The wire seam: converts a generated PHP value into its JSON form by
@@ -25,9 +26,9 @@ use Rasuvaeff\Schema\Type\UnionSchema;
  * backed value, containers convert recursively, a transform's declared
  * `wire` callback is applied, everything else passes through unchanged.
  *
- * Internal by design: the public surface stays in the PHP domain;
- * publishing a `serialize()` port is an RFC for after the first consumer
- * pilot.
+ * Internal by design: the public port is
+ * {@see \Rasuvaeff\Schema\SchemaInterface::toWire()}; `parse()` is its
+ * inverse, so there is no separate `fromWire()`.
  *
  * @internal
  */
@@ -86,7 +87,7 @@ final class Wire
 
                 if ($property !== null) {
                     $converted[$key] = self::value($property->schema, $item);
-                } elseif (!$schema->strip) {
+                } elseif ($schema->unknown !== Unknown::Strip) {
                     // Pass-through mode keeps unknown keys in their raw
                     // shape; strip drops them (a parsed value never
                     // carries them — defensive for hand-built values).

@@ -104,13 +104,13 @@ final class IntSchema extends SchemaType
 
         if ($this->min !== null && $input < $this->min) {
             return ParseResult::failed([
-                new ParseError([], \sprintf('Int must be at least %d, got %d', $this->min, $input)),
+                new ParseError([], \sprintf('Int must be at least %d', $this->min)),
             ]);
         }
 
         if ($this->max !== null && $input > $this->max) {
             return ParseResult::failed([
-                new ParseError([], \sprintf('Int must be at most %d, got %d', $this->max, $input)),
+                new ParseError([], \sprintf('Int must be at most %d', $this->max)),
             ]);
         }
 

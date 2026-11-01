@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.0 — 2026-11-01
+
+- **BC:** one unknown-key mode per object, the new `Unknown` enum
+  (`Reject` — the default, unchanged — `Strip`, `Passthrough`), set by
+  `Schema::object([...], unknown: Unknown::Strip)` or `->unknown(...)`.
+  Replaces the `bool $additionalProperties` factory argument, the
+  `additionalProperties()` and `strip()` methods and the
+  `$additionalProperties`/`$strip` properties. Migration:
+  `additionalProperties: true` / `->additionalProperties()` →
+  `unknown: Unknown::Passthrough`; `->strip()` → `unknown: Unknown::Strip`.
+  Parse, export and wire behaviour of each mode is unchanged.
+- **BC:** `SchemaInterface::parseJson(string $json)`: decode + parse, invalid
+  JSON is a root error `Invalid JSON (…)` instead of a misleading type error
+  about `null`. Custom `SchemaInterface` implementations must add it
+  (`SchemaType` subclasses inherit it).
+- **Behavior change:** `int`/`float` bound messages no longer echo the
+  input (`Int must be at least 18`, was `…, got 17`) — the package's own
+  rule that messages carry kinds and sizes, never values. Lengths and
+  counts stay in the messages.
+- Fix: numeric property names (`'0'`, which PHP stores as int `0`) work
+  everywhere — `arbitrary()` no longer dies with a `TypeError`, error
+  segments stay strings (`$.0`, not `$[0]`).
+- `ParseResult::orThrow()` (the value or a `SchemaException`) and
+  `ParseResult::summary(int $limit = 3, string $separator = '; ')` — the
+  one-line `$.path message; … (+N more)` consumers kept re-implementing.
+  `ParseError` is `Stringable` (`$.path message`).
+- `Schema::literals([...])` → `Type\LiteralsSchema`: one of a fixed set of
+  constants, strict `===`, export `enum` — the value set without a PHP enum.
+- `ObjectSchema` composition: `extend()`, `pick()`, `omit()`, `partial()`;
+  the unknown-key mode survives every step.
+- `ObjectSchema::requireAnyOf(...)`: at least one of the named properties
+  must be present (a default counts); groups accumulate; the generator
+  satisfies them constructively; export `anyOf`/`allOf` of `required`.
+- `ObjectSchema` is generic (`ObjectSchema<TShape>`), and the package ships a
+  Psalm plugin, `Rasuvaeff\Schema\Psalm\Plugin`: `Schema::object([...])`
+  infers the exact `array{...}` shape (optional keys `name?:`, passthrough
+  objects open), carried through `extend`/`pick`/`omit`/`partial`/`unknown`.
+  `vimeo/psalm` is a suggested dependency.
+- `yiisoft/validator` bridge: `Bridge\YiiValidator\SchemaRule` +
+  `SchemaRuleHandler` — a schema as a validator rule, errors at their own
+  paths (`payload.items.1.sku`). `yiisoft/validator` is a suggested
+  dependency.
+- README: unknown-key modes, composition, the Psalm plugin, the
+  "an event is one schema" recipe (`into()` + `toWire()`; `parse()` is the
+  inverse, no separate `fromWire()`), the validator bridge and the 1.x
+  stability contract. Three new runnable examples; `queue-payload.php`
+  checks parity through the wire form (a `dateTime` generates
+  `DateTimeImmutable`, so the direct parse it printed was `false`).
+- Internal docs: AGENTS.md no longer calls JSON Schema export "planned for
+  1.1".
+
 ## 0.4.0 — 2026-10-11
 
 - Badges (stable version, downloads, build, static analysis, Psalm level,

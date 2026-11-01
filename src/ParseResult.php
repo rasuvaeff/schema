@@ -29,6 +29,51 @@ final readonly class ParseResult
     ) {}
 
     /**
+     * The parsed value, or a {@see SchemaException} carrying every error —
+     * `$schema->parseJson($body)->orThrow()`.
+     *
+     * @return TValue
+     *
+     * @throws SchemaException when the parse failed
+     */
+    public function orThrow(): mixed
+    {
+        if (!$this->ok) {
+            throw new SchemaException($this->errors);
+        }
+
+        /** @var TValue $value */
+        $value = $this->value;
+
+        return $value;
+    }
+
+    /**
+     * One line for logs and exception messages: the first `$limit` errors
+     * as `$.path message`, joined by `$separator`, plus `(+N more)` when
+     * some were cut. Empty for a successful parse. Like every message of
+     * the package it carries paths and kinds, never input values.
+     *
+     * @param positive-int $limit
+     */
+    public function summary(int $limit = 3, string $separator = '; '): string
+    {
+        $lines = [];
+
+        foreach (\array_slice($this->errors, 0, $limit) as $error) {
+            $lines[] = $error->__toString();
+        }
+
+        $more = \count($this->errors) - \count($lines);
+
+        if ($more > 0) {
+            $lines[] = \sprintf('(+%d more)', $more);
+        }
+
+        return \implode($separator, $lines);
+    }
+
+    /**
      * @template T
      *
      * @param T $value

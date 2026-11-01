@@ -15,6 +15,7 @@ use Rasuvaeff\Schema\Type\IntSchema;
 use Rasuvaeff\Schema\Type\JsonValueSchema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Rasuvaeff\Schema\Type\LiteralSchema;
+use Rasuvaeff\Schema\Type\LiteralsSchema;
 use Rasuvaeff\Schema\Type\MapSchema;
 use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectProperty;
@@ -93,6 +94,22 @@ final class Schema
     }
 
     /**
+     * One of a fixed set of constants, compared strictly — the enum of
+     * values that have no PHP enum: `Schema::literals(['pending', 'paid'])`.
+     * Export: `{enum: [...]}`.
+     *
+     * @template TValue of string|int|float|bool|null
+     *
+     * @param list<TValue> $values non-empty, distinct
+     *
+     * @return LiteralsSchema<TValue>
+     */
+    public static function literals(array $values): LiteralsSchema
+    {
+        return new LiteralsSchema($values);
+    }
+
+    /**
      * @template TEnum of \BackedEnum
      *
      * @param class-string<TEnum> $enum
@@ -141,10 +158,14 @@ final class Schema
      * @param array<string, SchemaInterface> $properties bare schemas are
      *     required properties; `->optional()`/`->default()` wrap into
      *     {@see ObjectProperty}
+     * @param Unknown $unknown what to do with undeclared keys: reject
+     *     (default), strip, or pass them through
+     *
+     * @return ObjectSchema<array<string, mixed>>
      */
-    public static function object(array $properties, bool $additionalProperties = false): ObjectSchema
+    public static function object(array $properties, Unknown $unknown = Unknown::Reject): ObjectSchema
     {
-        return new ObjectSchema($properties, $additionalProperties);
+        return new ObjectSchema($properties, $unknown);
     }
 
     /**

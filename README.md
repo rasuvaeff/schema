@@ -60,6 +60,7 @@ $user = Schema::object([
     'meta' => Schema::mapOf(Schema::json())->optional(),
     'score' => Schema::float()->min(0.0)->max(1.0),       // finite floats only
     'created_at' => Schema::dateTime(),                   // RFC 3339 in, DateTimeImmutable out
+    'state' => Schema::literals(['pending', 'paid']),     // a value set without a PHP enum
 ]);
 ```
 
@@ -81,6 +82,13 @@ $value = $user->parseOrThrow($payload);  // SchemaException carries every error
 // SchemaException extends InvalidArgumentException — an invalid input,
 // not a runtime failure. Consumers with an InvalidArgumentException
 // contract can let it propagate as is.
+
+$result = $user->parseJson($body);       // decode + parse; invalid JSON is
+                                         // an error at '$', not a null type error
+$value = $result->orThrow();             // the value, or SchemaException
+$result->summary();                      // '$.age Int must be at least 18; $.tags[2] …'
+                                         // first 3 errors + '(+N more)'; '' when ok
+(string) $error;                         // '$.tags[2] Expected string, got int'
 ```
 
 Object semantics, pinned: an absent optional key is **absent from the result**
@@ -88,6 +96,123 @@ Object semantics, pinned: an absent optional key is **absent from the result**
 normalized default (an enum default may be given as its backed value and is
 stored as the instance). `nullable()` is about the value; `optional()` is
 about the key.
+
+### Unknown keys
+
+Every object has one mode for undeclared keys, an `Unknown` case:
+
+| Mode | Unknown key | Export | Use for |
+|---|---|---|---|
+| `Unknown::Reject` (default) | parse error at its own path | `additionalProperties: false` | payloads you own |
+| `Unknown::Strip` | dropped from the result | `additionalProperties: true` + `strip` entry | third-party payloads you read partially |
+| `Unknown::Passthrough` | kept in the result, raw | `additionalProperties: true` | maps you round-trip |
+
+```php
+use Rasuvaeff\Schema\Unknown;
+
+Schema::object(['id' => Schema::int()], unknown: Unknown::Strip);
+$schema->unknown(Unknown::Passthrough);   // the same shape, another mode
+```
+
+The mode belongs to one object: a nested object has its own (default:
+reject).
+
+### Composing objects
+
+```php
+$order = Schema::object([
+    'id' => Schema::int()->positive(),
+    'email' => Schema::string()->optional(),
+    'phone' => Schema::string()->optional(),
+])->requireAnyOf('email', 'phone');   // at least one present; calls accumulate
+
+$order->extend(['note' => Schema::string()->optional()]);   // add or replace
+$order->pick('id', 'email');                                // keep only these
+$order->omit('phone');                                      // drop these
+$order->partial();                                          // every key optional (PATCH body)
+```
+
+The unknown-key mode survives every step. `pick()`/`omit()` remove dropped
+names from `requireAnyOf` groups and drop an emptied group; an undeclared
+name is an `InvalidArgumentException`. A defaulted property satisfies a
+group (it is always present). The generator satisfies the groups
+constructively; the export adds `anyOf: [{required: [email]}, {required: [phone]}]`.
+
+### Typed results: the Psalm plugin
+
+Without the plugin, an object parses to `array<string, mixed>`, and the
+consumer writes `/** @var array{...} */` after every parse. The plugin infers
+the shape from the declaration:
+
+```xml
+<!-- psalm.xml -->
+<plugins>
+    <pluginClass class="Rasuvaeff\Schema\Psalm\Plugin"/>
+</plugins>
+```
+
+```php
+$payment = Schema::object([
+    'state' => Schema::literals(['pending', 'succeeded']),
+    'amountCents' => Schema::int()->nonNegative(),
+    'reference' => Schema::string()->optional(),
+], unknown: Unknown::Strip)->parseJson($body)->orThrow();
+// array{state: 'pending'|'succeeded', amountCents: int, reference?: string}
+```
+
+| Declaration | Key in the shape |
+|---|---|
+| bare schema, `->default($v)` | `name: T` (always present) |
+| `->optional()` | `name?: T` |
+| a variable holding an `ObjectProperty` | `name?: T` (the plugin cannot see whether it has a default) |
+| `Unknown::Passthrough` | the shape stays open: `...<string, mixed>` |
+
+`extend()`, `pick()`, `omit()`, `partial()` and `unknown()` carry the shape;
+`into(Dto::class)` already yields the DTO type without the plugin. Union,
+tuple, discriminated, lazy and json values stay `mixed` / `list<mixed>` /
+`array<string, mixed>`. A declaration the plugin cannot read (properties built
+in a loop) falls back to `array<string, mixed>`. Requires `vimeo/psalm` ^6.
+
+### Recipe: an event is one schema
+
+A message type needs a parser (`fromPayload`), a serializer (`toPayload`) and
+a generator for its property tests. With `into()` and `toWire()` the schema
+is all three — `parse()` is `fromWire()`:
+
+```php
+final readonly class OrderPaid
+{
+    public function __construct(public string $orderId, public Currency $currency) {}
+
+    /** @return IntoSchema<self> */
+    public static function schema(): IntoSchema
+    {
+        return Schema::object([
+            'orderId' => Schema::string()->min(1),
+            'currency' => Schema::enum(Currency::class),
+        ], unknown: Unknown::Strip)->into(self::class);
+    }
+
+    public static function fromJson(string $json): self
+    {
+        return self::schema()->parseJson($json)->orThrow();
+    }
+
+    public function toPayload(): array
+    {
+        return self::schema()->toWire($this);   // ['orderId' => ..., 'currency' => 'EUR']
+    }
+}
+
+// the property test, once per message type:
+$event = Gen::draw(OrderPaid::schema()->arbitrary());
+RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
+```
+
+No hand-written `toPayload()` can drift from the parser: both are the same
+tree. `toWire()` over `into()` reads the DTO's public properties
+(`get_object_vars()`), which is why the DTO takes them as promoted
+constructor arguments. See [examples/event-roundtrip.php](examples/event-roundtrip.php).
 
 ### Generate
 
@@ -174,7 +299,7 @@ $user->toWire($dto);                    // ['name' => ..., 'role' => 'admin']
 ```
 
 The parsed properties are passed to the constructor as named arguments,
-after defaults and `strip()` are settled. The DTO takes its properties as
+after defaults and `Unknown::Strip` are settled. The DTO takes its properties as
 public promoted constructor arguments — that is what makes `toWire()`
 lossless. A constructor that throws becomes a parse error carrying the class
 names only. The export is the object schema's own. Keep the DTO's own
@@ -227,6 +352,67 @@ invertible schema: a transform without a `wire` inverse, or a union whose
 members overlap (first success wins, so the wire form may re-parse through
 another member), breaks it by construction — prefer `Schema::discriminated()`.
 
+### `yiisoft/validator` bridge
+
+A schema as a validator rule: the property's value must parse, every schema
+error lands at its own path below the property.
+
+```php
+use Rasuvaeff\Schema\Bridge\YiiValidator\SchemaRule;
+use Yiisoft\Validator\Validator;
+
+$result = (new Validator())->validate($data, [
+    'payload' => [new SchemaRule(Schema::object([
+        'items' => Schema::arrayOf(Schema::object(['sku' => Schema::string()->min(1)])),
+    ]))],
+]);
+
+$result->getErrorMessagesIndexedByPath();
+// ['payload.items.1.sku' => ['String length must be at least 1, got 0']]
+```
+
+`skipOnEmpty`, `skipOnError` and `when` work as on any `yiisoft/validator`
+rule. Error parameters carry `path` (`$.items[1].sku`) and `pointer`
+(`/items/1/sku`). Messages are added without translation or formatting — they
+are the schema's English messages, never contain input values, and may
+contain braces (a literal's value) the formatter would misread. Requires
+`yiisoft/validator` ^2.6.
+
+A Respect bridge is not shipped: `respect/validation` 3 requires PHP 8.5,
+while this package supports 8.3. For Respect inside yiisoft/validator see
+[`rasuvaeff/yii3-respect-validation`](https://github.com/rasuvaeff/yii3-respect-validation).
+
+## Stability contract
+
+What 1.x keeps (a change is a major release):
+
+- the facade and every `@api` type, method and public property;
+- parse semantics: accepted and rejected inputs, normalization (enum →
+  instance, `allowInt` → float, `coerce` → typed value, defaults present,
+  absent optional keys absent, declaration order of object keys), the three
+  `Unknown` modes, first-success-wins for `union`, tag selection for
+  `discriminated`;
+- error **paths** (`ParseError::$segments`, `toPath()`, `toJsonPointer()`)
+  and the rule that messages never contain input values;
+- the parity law (everything `arbitrary()` generates parses) and the wire
+  law (`toWire()` output validates against `toJsonSchema()`);
+- `toWire()` as the inverse of `parse()`: enum → backed value, `dateTime` →
+  RFC 3339 with milliseconds, `into()` → the object's wire form, a
+  transform's declared `wire`;
+- the JSON Schema dialect (draft 2020-12) and the list of `NonRepresentable`
+  constructs: `refine`, `transform` (codec-less, lenient), `strip`, `coerce`,
+  `regexUnchecked`, `dateTime bounds`;
+- the strict/lenient export contract.
+
+What may change in a minor release:
+
+- message **texts** (match on paths and `segments`, not on wording);
+- the exact JSON Schema fragment for the same accepted set (e.g. a keyword
+  order or an added annotation);
+- the distribution and shrinking of generated values (the set stays the
+  same);
+- anything `@internal` (`Internal\*`, the Psalm plugin's provider class).
+
 ## Security
 
 Error messages never embed input values — kinds and sizes only
@@ -254,11 +440,12 @@ The `Schema` facade is the single entry point; every factory returns a
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 wire ↔ `DateTimeImmutable` domain; inclusive `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | `coerce()` (`"true"`/`"1"` → `true`) |
 | `Type\LiteralSchema` | `Schema::literal($v)` | strict `===` |
+| `Type\LiteralsSchema` | `Schema::literals(['a', 'b'])` | one of a set, strict `===`; export `enum` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; instance or backed value in, instance out |
 | `Type\JsonValueSchema` | `Schema::json()` | the `json_decode` domain |
 | `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
 | `Type\MapSchema` | `Schema::mapOf($v)` | string keys; `minCount`/`maxCount` |
-| `Type\ObjectSchema` | `Schema::object([...])` | `optional`/`default` properties, `additionalProperties()`, `strip()` |
+| `Type\ObjectSchema` | `Schema::object([...], unknown: Unknown::Strip)` | `optional`/`default` properties; `unknown()`, `requireAnyOf()`, `extend()`, `pick()`, `omit()`, `partial()`, `into()` |
 | `Type\UnionSchema` | `Schema::union([...])` | first success wins |
 | `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | tag selects the branch; disjoint by construction (required literal tag); export `oneOf` |
 | `Type\TupleSchema` | `Schema::tuple([...])` | fixed-length heterogeneous list; export `prefixItems` + `items: false` |
@@ -272,14 +459,29 @@ The `Schema` facade is the single entry point; every factory returns a
 Testing helpers: `Testing\RoundTrip` (`assertParses`, `assertWireRoundTrip`,
 `assertConsumerRoundTrip`) and `Testing\RoundTripException`.
 
-Results: `ParseResult` / `ParseError` (segments → `$.tags[2]` and RFC 6901),
-`SchemaException`, `JsonSchemaExport` + `NonRepresentable` /
-`NonRepresentableException` (strict export).
+Results: `ParseResult` (`orThrow()`, `summary()`) / `ParseError` (segments →
+`$.tags[2]` and RFC 6901, `Stringable`), `SchemaException`, `JsonSchemaExport`
++ `NonRepresentable` / `NonRepresentableException` (strict export). Every
+schema has `parse()`, `parseJson()`, `parseOrThrow()`, `arbitrary()`,
+`toJsonSchema()`, `toWire()`.
+
+Unknown-key modes: `Unknown` (`Reject`, `Strip`, `Passthrough`).
+
+Integrations (optional dependencies): `Psalm\Plugin` (shape inference, needs
+`vimeo/psalm`), `Bridge\YiiValidator\SchemaRule` + `SchemaRuleHandler`
+(needs `yiisoft/validator`).
 
 ## Examples
 
 - [examples/queue-payload.php](examples/queue-payload.php) — object schema
   with enum/default, error paths, generation from the same schema.
+- [examples/event-roundtrip.php](examples/event-roundtrip.php) — an event
+  class whose parser, serializer and generator are one schema.
+- [examples/external-api.php](examples/external-api.php) — a third-party
+  answer: `parseJson()`, `Unknown::Strip`, `literals()`, `requireAnyOf()`,
+  `summary()`.
+- [examples/yii-validator.php](examples/yii-validator.php) — a schema as a
+  `yiisoft/validator` rule.
 
 ## Development
 

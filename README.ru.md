@@ -61,6 +61,7 @@ $user = Schema::object([
     'meta' => Schema::mapOf(Schema::json())->optional(),
     'score' => Schema::float()->min(0.0)->max(1.0),       // только finite-числа
     'created_at' => Schema::dateTime(),                   // RFC 3339 на входе, DateTimeImmutable на выходе
+    'state' => Schema::literals(['pending', 'paid']),     // набор значений без PHP-enum
 ]);
 ```
 
@@ -82,12 +83,137 @@ $value = $user->parseOrThrow($payload);  // SchemaException несёт все о
 // SchemaException наследует InvalidArgumentException — это невалидный вход,
 // а не сбой рантайма. Потребители с контрактом InvalidArgumentException
 // могут прокину́ть его дальше без try/catch-обёртки.
+
+$result = $user->parseJson($body);       // decode + parse; невалидный JSON —
+                                         // ошибка в '$', а не ошибка типа про null
+$value = $result->orThrow();             // значение или SchemaException
+$result->summary();                      // '$.age Int must be at least 18; $.tags[2] …'
+                                         // первые 3 ошибки + '(+N more)'; '' при успехе
+(string) $error;                         // '$.tags[2] Expected string, got int'
 ```
 
 Семантика объекта, зафиксирована: отсутствующий optional-ключ **отсутствует
 в результате** (не `null`); ключ с default всегда присутствует и несёт
 проверенное, нормализованное значение (enum-default можно задать backed-значением
 — хранится инстанс). `nullable()` — про значение; `optional()` — про ключ.
+
+### Неизвестные ключи
+
+У каждого объекта один режим для необъявленных ключей — кейс `Unknown`:
+
+| Режим | Неизвестный ключ | Экспорт | Для чего |
+|---|---|---|---|
+| `Unknown::Reject` (по умолчанию) | ошибка разбора по его пути | `additionalProperties: false` | payload'ы, которыми вы владеете |
+| `Unknown::Strip` | выбрасывается из результата | `additionalProperties: true` + запись `strip` | чужие ответы, которые читаются частично |
+| `Unknown::Passthrough` | остаётся в результате как есть | `additionalProperties: true` | map'ы, которые гоняются туда-обратно |
+
+```php
+use Rasuvaeff\Schema\Unknown;
+
+Schema::object(['id' => Schema::int()], unknown: Unknown::Strip);
+$schema->unknown(Unknown::Passthrough);   // та же форма, другой режим
+```
+
+Режим принадлежит одному объекту: у вложенного объекта свой (по умолчанию —
+reject).
+
+### Композиция объектов
+
+```php
+$order = Schema::object([
+    'id' => Schema::int()->positive(),
+    'email' => Schema::string()->optional(),
+    'phone' => Schema::string()->optional(),
+])->requireAnyOf('email', 'phone');   // хотя бы один есть; вызовы накапливаются
+
+$order->extend(['note' => Schema::string()->optional()]);   // добавить или заменить
+$order->pick('id', 'email');                                // оставить только эти
+$order->omit('phone');                                      // убрать эти
+$order->partial();                                          // все ключи optional (тело PATCH)
+```
+
+Режим неизвестных ключей сохраняется на каждом шаге. `pick()`/`omit()`
+убирают выброшенные имена из групп `requireAnyOf`, опустевшая группа
+исчезает; необъявленное имя — `InvalidArgumentException`. Свойство с default
+удовлетворяет группу (оно всегда присутствует). Генератор удовлетворяет группы
+конструктивно; экспорт добавляет `anyOf: [{required: [email]}, {required: [phone]}]`.
+
+### Типизированный результат: Psalm-плагин
+
+Без плагина объект разбирается в `array<string, mixed>`, и потребитель пишет
+`/** @var array{...} */` после каждого разбора. Плагин выводит форму из
+объявления:
+
+```xml
+<!-- psalm.xml -->
+<plugins>
+    <pluginClass class="Rasuvaeff\Schema\Psalm\Plugin"/>
+</plugins>
+```
+
+```php
+$payment = Schema::object([
+    'state' => Schema::literals(['pending', 'succeeded']),
+    'amountCents' => Schema::int()->nonNegative(),
+    'reference' => Schema::string()->optional(),
+], unknown: Unknown::Strip)->parseJson($body)->orThrow();
+// array{state: 'pending'|'succeeded', amountCents: int, reference?: string}
+```
+
+| Объявление | Ключ в форме |
+|---|---|
+| голая схема, `->default($v)` | `name: T` (всегда есть) |
+| `->optional()` | `name?: T` |
+| переменная с `ObjectProperty` | `name?: T` (плагин не видит, есть ли default) |
+| `Unknown::Passthrough` | форма остаётся открытой: `...<string, mixed>` |
+
+`extend()`, `pick()`, `omit()`, `partial()` и `unknown()` переносят форму;
+`into(Dto::class)` и без плагина даёт тип DTO. Значения union, tuple,
+discriminated, lazy и json остаются `mixed` / `list<mixed>` /
+`array<string, mixed>`. Объявление, которое плагин не может прочитать
+(свойства собраны в цикле), откатывается к `array<string, mixed>`. Нужен
+`vimeo/psalm` ^6.
+
+### Рецепт: событие — это одна схема
+
+Типу сообщения нужны парсер (`fromPayload`), сериализатор (`toPayload`) и
+генератор для property-тестов. С `into()` и `toWire()` схема — это все три,
+а `parse()` и есть `fromWire()`:
+
+```php
+final readonly class OrderPaid
+{
+    public function __construct(public string $orderId, public Currency $currency) {}
+
+    /** @return IntoSchema<self> */
+    public static function schema(): IntoSchema
+    {
+        return Schema::object([
+            'orderId' => Schema::string()->min(1),
+            'currency' => Schema::enum(Currency::class),
+        ], unknown: Unknown::Strip)->into(self::class);
+    }
+
+    public static function fromJson(string $json): self
+    {
+        return self::schema()->parseJson($json)->orThrow();
+    }
+
+    public function toPayload(): array
+    {
+        return self::schema()->toWire($this);   // ['orderId' => ..., 'currency' => 'EUR']
+    }
+}
+
+// property-тест, один раз на тип сообщения:
+$event = Gen::draw(OrderPaid::schema()->arbitrary());
+RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
+```
+
+Рукописный `toPayload()` не может разойтись с парсером: это одно и то же
+дерево. `toWire()` поверх `into()` читает публичные свойства DTO
+(`get_object_vars()`), поэтому DTO принимает их promoted-аргументами
+конструктора. См. [examples/event-roundtrip.php](examples/event-roundtrip.php).
 
 ### Генерация
 
@@ -174,7 +300,7 @@ $user->toWire($dto);                    // ['name' => ..., 'role' => 'admin']
 ```
 
 Распарсенные свойства передаются в конструктор именованными аргументами,
-уже после применения default'ов и `strip()`. DTO принимает свойства как
+уже после применения default'ов и `Unknown::Strip`. DTO принимает свойства как
 public promoted-аргументы конструктора — именно это делает `toWire()`
 обратимым. Исключение из конструктора становится ошибкой парсинга, в которой
 есть только имена классов. Экспорт — собственный экспорт object-схемы.
@@ -229,6 +355,66 @@ RoundTrip::assertConsumerRoundTrip(                // ваша пара hydrate/
 распарситься через другой член) ломают закон по построению — предпочитайте
 `Schema::discriminated()`.
 
+### Мост к `yiisoft/validator`
+
+Схема как правило валидатора: значение свойства обязано разбираться, каждая
+ошибка схемы попадает по своему пути под свойством.
+
+```php
+use Rasuvaeff\Schema\Bridge\YiiValidator\SchemaRule;
+use Yiisoft\Validator\Validator;
+
+$result = (new Validator())->validate($data, [
+    'payload' => [new SchemaRule(Schema::object([
+        'items' => Schema::arrayOf(Schema::object(['sku' => Schema::string()->min(1)])),
+    ]))],
+]);
+
+$result->getErrorMessagesIndexedByPath();
+// ['payload.items.1.sku' => ['String length must be at least 1, got 0']]
+```
+
+`skipOnEmpty`, `skipOnError` и `when` работают как у любого правила
+`yiisoft/validator`. Параметры ошибки несут `path` (`$.items[1].sku`) и
+`pointer` (`/items/1/sku`). Сообщения добавляются без перевода и
+форматирования: это английские сообщения схемы, в них нет входных значений, и
+в них могут быть фигурные скобки (значение литерала), которые форматтер принял
+бы за плейсхолдеры. Нужен `yiisoft/validator` ^2.6.
+
+Мост к Respect не поставляется: `respect/validation` 3 требует PHP 8.5, а пакет
+поддерживает 8.3. Для Respect внутри yiisoft/validator есть
+[`rasuvaeff/yii3-respect-validation`](https://github.com/rasuvaeff/yii3-respect-validation).
+
+## Контракт стабильности
+
+Что 1.x сохраняет (изменение — мажорный релиз):
+
+- фасад и каждый `@api`-тип, метод и публичное свойство;
+- семантику разбора: принимаемые и отклоняемые входы, нормализацию (enum →
+  инстанс, `allowInt` → float, `coerce` → типизированное значение, default
+  присутствуют, отсутствующие optional-ключи отсутствуют, порядок ключей
+  объекта как в объявлении), три режима `Unknown`, первый успех у `union`,
+  выбор ветки по тегу у `discriminated`;
+- **пути** ошибок (`ParseError::$segments`, `toPath()`, `toJsonPointer()`) и
+  правило, что в сообщениях нет входных значений;
+- закон паритета (всё, что генерирует `arbitrary()`, разбирается) и
+  wire-закон (выход `toWire()` проходит валидацию по `toJsonSchema()`);
+- `toWire()` как обратную к `parse()`: enum → backed-значение, `dateTime` →
+  RFC 3339 с миллисекундами, `into()` → wire-форма объекта, объявленный
+  `wire` у transform;
+- диалект JSON Schema (draft 2020-12) и список конструкций
+  `NonRepresentable`: `refine`, `transform` (без кодека, lenient), `strip`,
+  `coerce`, `regexUnchecked`, `dateTime bounds`;
+- контракт strict/lenient-экспорта.
+
+Что может меняться в минорном релизе:
+
+- **тексты** сообщений (сопоставлять по путям и `segments`, не по формулировке);
+- точный фрагмент JSON Schema для того же множества (порядок ключевых слов,
+  добавленная аннотация);
+- распределение и shrinking сгенерированных значений (множество то же);
+- всё `@internal` (`Internal\*`, класс-провайдер Psalm-плагина).
+
 ## Безопасность
 
 Сообщения об ошибках никогда не встраивают входные значения — только виды
@@ -255,11 +441,12 @@ code-point'ах и движок паттернов никогда не расх�
 | `Type\DateTimeSchema` | `Schema::dateTime()` | RFC 3339 в wire ↔ `DateTimeImmutable` в домене; инклюзивные `min`/`max` |
 | `Type\BoolSchema` | `Schema::bool()` | `coerce()` (`"true"`/`"1"` → `true`) |
 | `Type\LiteralSchema` | `Schema::literal($v)` | строгое `===` |
+| `Type\LiteralsSchema` | `Schema::literals(['a', 'b'])` | одно из набора, строгое `===`; экспорт `enum` |
 | `Type\EnumSchema` | `Schema::enum(Role::class)` | backed; инстанс или backed-значение на входе, инстанс на выходе |
 | `Type\JsonValueSchema` | `Schema::json()` | домен `json_decode` |
 | `Type\ArraySchema` | `Schema::arrayOf($el)` | list; `minCount`/`maxCount` |
 | `Type\MapSchema` | `Schema::mapOf($v)` | строковые ключи; `minCount`/`maxCount` |
-| `Type\ObjectSchema` | `Schema::object([...])` | свойства `optional`/`default`, `additionalProperties()`, `strip()` |
+| `Type\ObjectSchema` | `Schema::object([...], unknown: Unknown::Strip)` | свойства `optional`/`default`; `unknown()`, `requireAnyOf()`, `extend()`, `pick()`, `omit()`, `partial()`, `into()` |
 | `Type\UnionSchema` | `Schema::union([...])` | первый успех побеждает |
 | `Type\DiscriminatedSchema` | `Schema::discriminated('kind', ['a' => $obj, ...])` | тег выбирает ветвь; дизъюнктность по построению (обязательный literal-тег); экспорт `oneOf` |
 | `Type\TupleSchema` | `Schema::tuple([...])` | разнородный список фиксированной длины; экспорт `prefixItems` + `items: false` |
@@ -273,14 +460,28 @@ code-point'ах и движок паттернов никогда не расх�
 Тестовые хелперы: `Testing\RoundTrip` (`assertParses`, `assertWireRoundTrip`,
 `assertConsumerRoundTrip`) и `Testing\RoundTripException`.
 
-Результаты: `ParseResult` / `ParseError` (сегменты → `$.tags[2]` и RFC 6901),
-`SchemaException`, `JsonSchemaExport` + `NonRepresentable` /
-`NonRepresentableException` (строгий экспорт).
+Результаты: `ParseResult` (`orThrow()`, `summary()`) / `ParseError` (сегменты →
+`$.tags[2]` и RFC 6901, `Stringable`), `SchemaException`, `JsonSchemaExport` +
+`NonRepresentable` / `NonRepresentableException` (строгий экспорт). У каждой
+схемы есть `parse()`, `parseJson()`, `parseOrThrow()`, `arbitrary()`,
+`toJsonSchema()`, `toWire()`.
+
+Режимы неизвестных ключей: `Unknown` (`Reject`, `Strip`, `Passthrough`).
+
+Интеграции (необязательные зависимости): `Psalm\Plugin` (вывод формы, нужен
+`vimeo/psalm`), `Bridge\YiiValidator\SchemaRule` + `SchemaRuleHandler`
+(нужен `yiisoft/validator`).
 
 ## Примеры
 
 - [examples/queue-payload.php](examples/queue-payload.php) — схема объекта
   с enum/default, пути ошибок, генерация из той же схемы.
+- [examples/event-roundtrip.php](examples/event-roundtrip.php) — класс
+  события, у которого парсер, сериализатор и генератор — одна схема.
+- [examples/external-api.php](examples/external-api.php) — ответ чужого API:
+  `parseJson()`, `Unknown::Strip`, `literals()`, `requireAnyOf()`, `summary()`.
+- [examples/yii-validator.php](examples/yii-validator.php) — схема как правило
+  `yiisoft/validator`.
 
 ## Разработка
 

@@ -1,7 +1,8 @@
 {
     "$schema": "vendor/infection/infection/resources/schema.json",
     "source": {
-        "directories": ["src"]
+        "directories": ["src"],
+        "excludes": ["Psalm"]
     },
     "logs": {
         "text": "php://stderr",
