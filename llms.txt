@@ -78,6 +78,7 @@ $schema->parseOrThrow($input);          // throws SchemaException (all errors)
 
 $schema->parseJson($json);              // decode + parse; bad JSON → `Invalid JSON (…)` at `$`
 $result->orThrow();                     // value or SchemaException
+$result->valueOr(null);                 // value or the default, typed TValue|TDefault (Psalm cannot narrow ->value by ->ok)
 $result->summary(limit: 3, separator: '; ');  // '$.a msg; $.b msg; (+N more)'; '' when ok
 (string) $error;                        // '$.path message'
 ```

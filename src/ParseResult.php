@@ -30,6 +30,32 @@ final readonly class ParseResult
     ) {}
 
     /**
+     * The parsed value, or `$default` when the parse failed — typed access
+     * without an exception: `$user = $result->valueOr(null); if ($user ===
+     * null) { … }` leaves `$user` with the exact shape the Psalm plugin
+     * inferred. (The property `ok` cannot narrow `value` for Psalm.) For a
+     * schema whose own values may equal `$default` — `nullable()` with a
+     * `null` default — check `ok` instead.
+     *
+     * @template TDefault
+     *
+     * @param TDefault $default
+     *
+     * @return TValue|TDefault
+     */
+    public function valueOr(mixed $default): mixed
+    {
+        if (!$this->ok) {
+            return $default;
+        }
+
+        /** @var TValue $value */
+        $value = $this->value;
+
+        return $value;
+    }
+
+    /**
      * The parsed value, or a {@see SchemaException} carrying every error —
      * `$schema->parseJson($body)->orThrow()`.
      *

@@ -175,8 +175,11 @@ discriminated, lazy и json остаются `mixed` / `list<mixed>` /
 (свойства собраны в цикле), откатывается к `array<string, mixed>`. Нужен
 `vimeo/psalm` ^6.
 
-`$result->value` тоже несёт форму (`array{...}|null`, null при неуспехе);
-`orThrow()` отдаёт её без null. Ограничения в выведенный тип не входят:
+`$result->value` тоже несёт форму (`array{...}|null`, null при неуспехе), но
+psalm не сужает его по `$result->ok`. Типизированный доступ — `orThrow()`
+(с исключением) или `valueOr($default)` (без исключения):
+`$user = $result->valueOr(null); if ($user === null) { … }` оставляет `$user`
+точным `array{...}`. Ограничения в выведенный тип не входят:
 `int()->min(0)` — это `int`, а не `int<0, max>`, `string()->min(1)` —
 `string`, а не `non-empty-string`; где это важно, сужайте вручную. Схема,
 которую возвращает вспомогательный метод, теряет выведенную форму на границе
@@ -220,7 +223,10 @@ RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
 
 Рукописный `toPayload()` не может разойтись с парсером: это одно и то же
 дерево. `toWire()` у схемы `into()` (и у объекта) типизирован как
-`array<string, mixed>`, так что `toPayload(): array` обходится без каста.
+`array<string, mixed>`, так что `toPayload(): array` обходится без каста —
+если `schema()` объявлен как `IntoSchema` (`@return IntoSchema<self>`).
+Интерфейс с `schema(): SchemaInterface` можно реализовать с более узким
+`IntoSchema`; через сам интерфейс `toWire()` снова `mixed`.
 Выигрыш тем больше, чем больше полей в payload; для одного поля литеральный
 массив не хуже.
 

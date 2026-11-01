@@ -177,4 +177,25 @@ final class ObjectShapeFixture
 
         return $wire;
     }
+
+    public function valueOrGivesTheShapeWithoutAnException(mixed $input): ?int
+    {
+        $user = Schema::object(['id' => Schema::int()])->parse($input)->valueOr(null);
+
+        if ($user === null) {
+            return null;
+        }
+
+        /** @psalm-check-type-exact $user = array{id: int} */
+        $this->checked[] = $user;
+
+        return $user['id'];
+    }
+
+    public function valueOrKeepsTheDefaultsType(mixed $input): void
+    {
+        $tags = Schema::arrayOf(Schema::string())->parse($input)->valueOr([]);
+        /** @psalm-check-type-exact $tags = list<string> */
+        $this->checked[] = $tags;
+    }
 }

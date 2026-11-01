@@ -175,7 +175,10 @@ tuple, discriminated, lazy and json values stay `mixed` / `list<mixed>` /
 in a loop) falls back to `array<string, mixed>`. Requires `vimeo/psalm` ^6.
 
 `$result->value` carries the shape too (`array{...}|null`, null when not
-`ok`); `orThrow()` gives it without the null. Constraints are not part of the
+`ok`), but Psalm cannot narrow it by `$result->ok`. Typed access is
+`orThrow()` (throws) or `valueOr($default)` (no exception):
+`$user = $result->valueOr(null); if ($user === null) { … }` leaves `$user`
+as the exact `array{...}`. Constraints are not part of the
 inferred type: `int()->min(0)` is `int`, not `int<0, max>`, and
 `string()->min(1)` is `string`, not `non-empty-string` — narrow by hand where
 it matters. A schema returned from a helper method loses the inferred shape at
@@ -220,7 +223,11 @@ RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
 
 No hand-written `toPayload()` can drift from the parser: both are the same
 tree. `toWire()` of an `into()` (or object) schema is typed
-`array<string, mixed>`, so `toPayload(): array` needs no cast. The gain is
+`array<string, mixed>`, so `toPayload(): array` needs no cast — as long as
+`schema()` is declared `IntoSchema` (`@return IntoSchema<self>`). An
+interface that declares `schema(): SchemaInterface` may still be
+implemented with the narrower `IntoSchema` return type; through the
+interface `toWire()` is `mixed` again. The gain is
 largest for payloads with several fields; for a one-field payload a literal
 array is just as safe.
 
