@@ -14,6 +14,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(JsonValueSchema::class)]
+#[Covers(Schema::class)]
 final class JsonValueSchemaTest
 {
     #[DataProvider('jsonValueProvider')]

@@ -6,6 +6,8 @@ namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Combinator\IntoSchema;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaInterface;
 use Rasuvaeff\Schema\Tests\Support\Role;
@@ -19,6 +21,10 @@ use Testo\Test;
 
 #[Test]
 #[Covers(IntoSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(Unknown::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
 final class IntoSchemaTest
 {
     public function hydratesParsedPropertiesIntoTheDto(): void

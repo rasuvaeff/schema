@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaException;
 use Rasuvaeff\Schema\Type\LiteralsSchema;
@@ -16,6 +18,10 @@ use Testo\Test;
 
 #[Test]
 #[Covers(LiteralsSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(SchemaException::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
 final class LiteralsSchemaTest
 {
     public function acceptsEveryListedValue(): void

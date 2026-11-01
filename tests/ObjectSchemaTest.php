@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\Schema;
@@ -23,6 +25,12 @@ use function Rasuvaeff\Understudy\when;
 
 #[Test]
 #[Covers(ObjectSchema::class)]
+#[Covers(ParseError::class)]
+#[Covers(ParseResult::class)]
+#[Covers(Schema::class)]
+#[Covers(Unknown::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
 final class ObjectSchemaTest
 {
     public function parsesDeclaredProperties(): void
@@ -541,5 +549,12 @@ final class ObjectSchemaTest
     {
         Assert::same(Schema::object(['role' => Schema::enum(\Rasuvaeff\Schema\Tests\Support\Role::class)])->toWire(['role' => \Rasuvaeff\Schema\Tests\Support\Role::Admin]), ['role' => 'admin']);
         Assert::same(Schema::object([])->toWire('not an array'), 'not an array');
+    }
+
+    public function anObjectWithoutPropertiesGeneratesTheEmptyArray(): void
+    {
+        $arbitrary = Schema::object([])->arbitrary();
+
+        Assert::same($arbitrary->generate(new Random(1))->value, []);
     }
 }

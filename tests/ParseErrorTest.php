@@ -13,6 +13,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ParseError::class)]
+#[Covers(UnionBranch::class)]
 final class ParseErrorTest
 {
     #[DataProvider('pathProvider')]
@@ -106,5 +107,11 @@ final class ParseErrorTest
     public function aQuotedKeyStillRendersAsAPlainPointerSegment(): void
     {
         Assert::same((new ParseError(['a.b', 'c/d'], 'x'))->toJsonPointer(), '/a.b/c~1d');
+    }
+
+    public function theRootDocumentIsTheEmptyJsonPointer(): void
+    {
+        Assert::same((new ParseError([], 'x'))->toJsonPointer(), '');
+        Assert::same((new ParseError([0], 'x'))->toJsonPointer(), '/0');
     }
 }

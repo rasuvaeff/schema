@@ -13,6 +13,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(TransformSchema::class)]
+#[Covers(Schema::class)]
 final class TransformSchemaTest
 {
     public function mapsTheParsedValue(): void

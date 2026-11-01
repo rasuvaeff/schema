@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Tests;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Format;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\StringSchema;
 use Testo\Assert;
@@ -17,6 +18,9 @@ use Testo\Test;
 
 #[Test]
 #[Covers(StringSchema::class)]
+#[Covers(Format::class)]
+#[Covers(Schema::class)]
+#[Covers(JsonSchemaExport::class)]
 final class FormatTest
 {
     #[DataProvider('formatProvider')]

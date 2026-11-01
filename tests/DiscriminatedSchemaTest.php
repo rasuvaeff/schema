@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\DiscriminatedSchema;
 use Rasuvaeff\Schema\Type\ObjectProperty;
@@ -15,6 +17,10 @@ use Testo\Test;
 
 #[Test]
 #[Covers(DiscriminatedSchema::class)]
+#[Covers(ObjectProperty::class)]
+#[Covers(Schema::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
 final class DiscriminatedSchemaTest
 {
     public function theTagSelectsTheBranch(): void

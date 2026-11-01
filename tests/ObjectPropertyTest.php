@@ -15,6 +15,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ObjectProperty::class)]
+#[Covers(Schema::class)]
 final class ObjectPropertyTest
 {
     public function defaultIsValidatedAndNormalized(): void
@@ -55,5 +56,15 @@ final class ObjectPropertyTest
         Assert::same($property->parseOrThrow('ab'), 'ab');
         Assert::true($property->parse('x')->ok === false);
         Assert::true($property->arbitrary()->generate(new Random(2)) instanceof \Rasuvaeff\PropertyTesting\Shrinkable);
+    }
+
+    public function optionalMarksARequiredPropertyWithoutTouchingTheOriginal(): void
+    {
+        $required = new ObjectProperty(schema: Schema::string());
+        $optional = $required->optional();
+
+        Assert::false($required->optional);
+        Assert::true($optional->optional);
+        Assert::false($optional->hasDefault);
     }
 }

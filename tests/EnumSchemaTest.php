@@ -17,6 +17,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(EnumSchema::class)]
+#[Covers(Schema::class)]
 final class EnumSchemaTest
 {
     public function acceptsAnInstance(): void
@@ -67,5 +68,42 @@ final class EnumSchemaTest
         for ($i = 0; $i < 25; $i++) {
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
+    }
+
+    public function aPureEnumIsRejectedAsNotBacked(): void
+    {
+        try {
+            Schema::enum(PureEnum::class);
+        } catch (\InvalidArgumentException $exception) {
+            Assert::same($exception->getMessage(), \sprintf('"%s" is not a backed enum', PureEnum::class));
+
+            return;
+        }
+
+        throw new \LogicException('a pure enum was expected to be rejected');
+    }
+
+    public function aRejectionNamesEveryAllowedValue(): void
+    {
+        Assert::same(
+            Schema::enum(Role::class)->parse('nope')->errors[0]->message,
+            "Expected one of: 'admin', 'editor', 'viewer'",
+        );
+        Assert::same(
+            Schema::enum(Suit::class)->parse(9)->errors[0]->message,
+            'Expected one of: 1, 2',
+        );
+    }
+
+    public function exportsTheBackingTypeAndEveryValue(): void
+    {
+        Assert::same(
+            Schema::enum(Role::class)->toJsonSchema()->schema,
+            ['type' => 'string', 'enum' => ['admin', 'editor', 'viewer']],
+        );
+        Assert::same(
+            Schema::enum(Suit::class)->toJsonSchema()->schema,
+            ['type' => 'integer', 'enum' => [1, 2]],
+        );
     }
 }

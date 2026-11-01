@@ -15,6 +15,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ArraySchema::class)]
+#[Covers(Schema::class)]
 final class ArraySchemaTest
 {
     public function parsesEveryElement(): void
@@ -119,5 +120,58 @@ final class ArraySchemaTest
         for ($i = 0; $i < 25; $i++) {
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
+    }
+
+    public function theMaximumCountIsInclusiveAndMayEqualTheMinimum(): void
+    {
+        $schema = Schema::arrayOf(Schema::int())->maxCount(2);
+
+        Assert::true($schema->parse([1, 2])->ok);
+        Assert::false($schema->parse([1, 2, 3])->ok);
+        Assert::same($schema->minCount(2)->minCount, 2);
+    }
+
+    public function theDefaultGeneratorSpansZeroToTwentyElements(): void
+    {
+        $counts = [];
+        $arbitrary = Schema::arrayOf(Schema::int())->arbitrary();
+        $random = new Random(11);
+
+        for ($i = 0; $i < 400; $i++) {
+            $counts[] = \count($arbitrary->generate($random)->value);
+        }
+
+        Assert::same(\min($counts), 0);
+        Assert::same(\max($counts), 20);
+    }
+
+    public function theGeneratorHonorsAMinimumWithoutAMaximum(): void
+    {
+        $arbitrary = Schema::arrayOf(Schema::int())->minCount(3)->arbitrary();
+        $random = new Random(12);
+
+        for ($i = 0; $i < 200; $i++) {
+            $count = \count($arbitrary->generate($random)->value);
+
+            Assert::true($count >= 3 && $count <= 20);
+        }
+    }
+
+    public function exportsTheCountsOnlyWhenSet(): void
+    {
+        $items = ['type' => 'integer'];
+
+        Assert::same(
+            Schema::arrayOf(Schema::int())->toJsonSchema()->schema,
+            ['type' => 'array', 'items' => $items],
+        );
+        Assert::same(
+            Schema::arrayOf(Schema::int())->minCount(1)->toJsonSchema()->schema,
+            ['type' => 'array', 'items' => $items, 'minItems' => 1],
+        );
+        Assert::same(
+            Schema::arrayOf(Schema::int())->maxCount(2)->toJsonSchema()->schema,
+            ['type' => 'array', 'items' => $items, 'maxItems' => 2],
+        );
     }
 }

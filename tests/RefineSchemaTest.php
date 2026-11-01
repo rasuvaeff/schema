@@ -13,6 +13,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(RefineSchema::class)]
+#[Covers(Schema::class)]
 final class RefineSchemaTest
 {
     public function aPassingPredicateKeepsTheValue(): void

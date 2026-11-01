@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rasuvaeff\Schema\Tests;
 
 use Rasuvaeff\PropertyTesting\Random;
+use Rasuvaeff\Schema\Internal\Wire;
+use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Tests\Support\Status;
 use Rasuvaeff\Schema\Type\TupleSchema;
@@ -16,6 +18,9 @@ use Testo\Test;
 
 #[Test]
 #[Covers(TupleSchema::class)]
+#[Covers(Schema::class)]
+#[Covers(Wire::class)]
+#[Covers(JsonSchemaExport::class)]
 final class TupleSchemaTest
 {
     public function parsesAFixedHeterogeneousList(): void
