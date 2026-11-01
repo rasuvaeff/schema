@@ -92,4 +92,19 @@ final class ParseErrorTest
         Assert::same((string) new ParseError([], 'boom'), '$ boom');
         Assert::instanceOf(new ParseError([], 'boom'), \Stringable::class);
     }
+
+    public function keysThatAreNotPlainNamesAreQuotedInThePath(): void
+    {
+        Assert::same((new ParseError(['a.b'], 'x'))->toPath(), "$['a.b']");
+        Assert::same((new ParseError(['a', 'b'], 'x'))->toPath(), '$.a.b');
+        Assert::same((new ParseError(['user@example.com', 0, 'first name'], 'x'))->toPath(), "$['user@example.com'][0]['first name']");
+        Assert::same((new ParseError(["it's", 'back\\slash'], 'x'))->toPath(), "$['it\\'s']['back\\\\slash']");
+        Assert::same((new ParseError(['0', '_ok', 'A9', '9a', ''], 'x'))->toPath(), "$['0']._ok.A9['9a']['']");
+        Assert::same((new ParseError(["a\n"], 'x'))->toPath(), "$['a\n']");
+    }
+
+    public function aQuotedKeyStillRendersAsAPlainPointerSegment(): void
+    {
+        Assert::same((new ParseError(['a.b', 'c/d'], 'x'))->toJsonPointer(), '/a.b/c~1d');
+    }
 }

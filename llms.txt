@@ -60,7 +60,7 @@ $schema->omit('phone');                        // drop; pick/omit prune requireA
 $schema->partial();                            // every key optional; defaults stay
 ```
 
-Reject → error `Unknown property "x"` at `$.x`, export `additionalProperties:
+Reject → error `Unknown property` at `$.x` (the key is in the path, never in the message), export `additionalProperties:
 false`; Strip → dropped, export `true` + `strip` NonRepresentable;
 Passthrough → kept raw in the result, export `true`. requireAnyOf error:
 `At least one of "email", "phone" is required` at `$`; export `anyOf:
@@ -93,7 +93,7 @@ a defaulted key is always present with the normalized default.
 
 ```php
 $error->segments;                       // list<int|string> — source of truth
-$error->toPath();                       // '$.tags[2].name' (monorepo notation)
+$error->toPath();                       // '$.tags[2].name'; non-plain keys quoted: "$['a.b']", "$['0']"
 $error->toJsonPointer();                // '/tags/2/name' (RFC 6901)
 $error->message;                        // kinds/sizes only, no input values
 ```

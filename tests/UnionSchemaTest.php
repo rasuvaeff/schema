@@ -103,7 +103,7 @@ final class UnionSchemaTest
         Assert::same($branches[2]->error->message, 'Required property "id" is missing');
         Assert::same($branches[3]->member, 1);
         Assert::same($branches[3]->error->toPath(), '$.name');
-        Assert::same($branches[3]->error->message, 'Unknown property "name"');
+        Assert::same($branches[3]->error->message, 'Unknown property');
         Assert::same($branches[4]->member, 1);
         Assert::same($branches[4]->error->toPath(), '$.age');
     }

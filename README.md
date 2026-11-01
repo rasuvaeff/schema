@@ -71,7 +71,8 @@ $result = $user->parse($payload);
 
 if (!$result->ok) {
     foreach ($result->errors as $error) {
-        // '$.tags[2]' / RFC 6901 '/tags/2' — the segments are the source of truth
+        // '$.tags[2]' / RFC 6901 '/tags/2' — the segments are the source of truth;
+        // a key that is not a plain name is quoted: $['user@example.com'], $['a.b']
         $error->toPath();
         $error->toJsonPointer();
         $error->message;  // kinds and sizes only, never the offending value
@@ -173,6 +174,14 @@ tuple, discriminated, lazy and json values stay `mixed` / `list<mixed>` /
 `array<string, mixed>`. A declaration the plugin cannot read (properties built
 in a loop) falls back to `array<string, mixed>`. Requires `vimeo/psalm` ^6.
 
+`$result->value` carries the shape too (`array{...}|null`, null when not
+`ok`); `orThrow()` gives it without the null. Constraints are not part of the
+inferred type: `int()->min(0)` is `int`, not `int<0, max>`, and
+`string()->min(1)` is `string`, not `non-empty-string` — narrow by hand where
+it matters. A schema returned from a helper method loses the inferred shape at
+the method boundary; declare it there:
+`/** @return ObjectSchema<array{id: int, name?: string}> */`.
+
 ### Recipe: an event is one schema
 
 A message type needs a parser (`fromPayload`), a serializer (`toPayload`) and
@@ -210,7 +219,14 @@ RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
 ```
 
 No hand-written `toPayload()` can drift from the parser: both are the same
-tree. `toWire()` over `into()` reads the DTO's public properties
+tree. `toWire()` of an `into()` (or object) schema is typed
+`array<string, mixed>`, so `toPayload(): array` needs no cast. The gain is
+largest for payloads with several fields; for a one-field payload a literal
+array is just as safe.
+
+`parseJson()` reports invalid JSON as a parse error, so the `JsonException`
+is not attached anywhere; keep `json_decode(..., JSON_THROW_ON_ERROR)` where
+the caller needs it as a cause. `toWire()` over `into()` reads the DTO's public properties
 (`get_object_vars()`), which is why the DTO takes them as promoted
 constructor arguments. See [examples/event-roundtrip.php](examples/event-roundtrip.php).
 
@@ -392,8 +408,9 @@ What 1.x keeps (a change is a major release):
   absent optional keys absent, declaration order of object keys), the three
   `Unknown` modes, first-success-wins for `union`, tag selection for
   `discriminated`;
-- error **paths** (`ParseError::$segments`, `toPath()`, `toJsonPointer()`)
-  and the rule that messages never contain input values;
+- error **paths** (`ParseError::$segments`, `toPath()` with quoted
+  non-plain keys, `toJsonPointer()`) and the rule that messages never contain
+  input values (keys appear in paths only);
 - the parity law (everything `arbitrary()` generates parses) and the wire
   law (`toWire()` output validates against `toJsonSchema()`);
 - `toWire()` as the inverse of `parse()`: enum → backed value, `dateTime` →
@@ -416,7 +433,10 @@ What may change in a minor release:
 ## Security
 
 Error messages never embed input values — kinds and sizes only
-(`get_debug_type`, lengths, counts). Payloads may carry secrets; errors
+(`get_debug_type`, lengths, counts). Input **keys** are structure, not
+values: they appear in the error path (`$.extra`, `$['user@example.com']`),
+never in the message (`Unknown property`), so a path is the one place to
+redact if keys themselves may be secret. Payloads may carry secrets; errors
 travel to logs and Sentry. A `transform` callback that throws contributes
 its class name only.
 

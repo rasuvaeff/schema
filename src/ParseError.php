@@ -70,7 +70,16 @@ final readonly class ParseError implements \Stringable
         $path = '$';
 
         foreach ($this->segments as $segment) {
-            $path .= \is_int($segment) ? '[' . $segment . ']' : '.' . $segment;
+            if (\is_int($segment)) {
+                $path .= '[' . $segment . ']';
+            } elseif (preg_match('/^[A-Za-z_][A-Za-z0-9_]*\z/', $segment) === 1) {
+                $path .= '.' . $segment;
+            } else {
+                // a key that is not a plain name (dots, brackets, quotes,
+                // spaces, digits first) is quoted, so the path stays
+                // unambiguous: $['a.b'] is one key, $.a.b two
+                $path .= "['" . str_replace(['\\', "'"], ['\\\\', "\\'"], $segment) . "']";
+            }
         }
 
         return $path;

@@ -83,14 +83,14 @@ final class ObjectSchemaTest
         Assert::same($result->value['role'], Role::Admin);
     }
 
-    public function unknownPropertiesAreRejectedWithTheirName(): void
+    public function unknownPropertiesAreRejectedAtTheirPath(): void
     {
         $schema = Schema::object(['name' => Schema::string()]);
 
         $result = $schema->parse(['name' => 'ada', 'extra' => 1]);
 
         Assert::false($result->ok);
-        Assert::same($result->errors[0]->message, 'Unknown property "extra"');
+        Assert::same($result->errors[0]->message, 'Unknown property');
         Assert::same($result->errors[0]->toPath(), '$.extra');
     }
 
@@ -101,7 +101,7 @@ final class ObjectSchemaTest
         $result = $schema->parse(['name' => 'ada', 0 => 'x']);
 
         Assert::false($result->ok);
-        Assert::same($result->errors[0]->message, 'Unknown property "0"');
+        Assert::same($result->errors[0]->message, 'Unknown property');
     }
 
     public function passthroughKeepsUnknownKeysInTheResult(): void
@@ -447,7 +447,7 @@ final class ObjectSchemaTest
         $error = Schema::object([])->parse([7 => 'x'])->errors[0];
 
         Assert::same($error->segments, ['7']);
-        Assert::same($error->toPath(), '$.7');
+        Assert::same($error->toPath(), "$['7']");
     }
 
     public function theGroupFallbackIsUsedOnlyWhenTheGroupIsAbsent(): void
@@ -527,5 +527,19 @@ final class ObjectSchemaTest
 
         Assert::same(\array_keys($replaced->properties), [0, 1, 'a']);
         Assert::true($replaced->parse(['a' => 1, '0' => 'now a string'])->ok);
+    }
+
+    public function anUnknownKeyIsNamedByThePathNotByTheMessage(): void
+    {
+        $error = Schema::object([])->parse(['<script>secret-token' => 1])->errors[0];
+
+        Assert::same($error->message, 'Unknown property');
+        Assert::same($error->toPath(), "$['<script>secret-token']");
+    }
+
+    public function toWireOfAnObjectIsItsWireArray(): void
+    {
+        Assert::same(Schema::object(['role' => Schema::enum(\Rasuvaeff\Schema\Tests\Support\Role::class)])->toWire(['role' => \Rasuvaeff\Schema\Tests\Support\Role::Admin]), ['role' => 'admin']);
+        Assert::same(Schema::object([])->toWire('not an array'), 'not an array');
     }
 }

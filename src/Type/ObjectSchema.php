@@ -235,7 +235,8 @@ final class ObjectSchema extends SchemaType
             if ($this->unknown === Unknown::Passthrough) {
                 $values[$key] = $input[$key];
             } elseif ($this->unknown === Unknown::Reject) {
-                $errors[] = new ParseError([(string) $key], \sprintf('Unknown property "%s"', $key));
+                // the key is input: it is named by the path, never by the message
+                $errors[] = new ParseError([(string) $key], 'Unknown property');
             }
         }
 
@@ -360,6 +361,22 @@ final class ObjectSchema extends SchemaType
     private function entry(int|string $name): Closure
     {
         return static fn(mixed $value): array => [$name => $value];
+    }
+
+    /**
+     * @template TIn
+     *
+     * @param TIn $value
+     *
+     * @return (TIn is array ? array<string, mixed> : TIn)
+     */
+    #[\Override]
+    public function toWire(mixed $value): mixed
+    {
+        /** @var (TIn is array ? array<string, mixed> : TIn) $wire Wire maps an array to an array, anything else passes */
+        $wire = Wire::value($this, $value);
+
+        return $wire;
     }
 
     #[\Override]
