@@ -76,4 +76,12 @@ final class ParseResultTest
 
         Assert::same($summary, '$.token Expected int, got string');
     }
+
+    public function valueOrIsTheValueOfASuccessAndTheDefaultOfAFailure(): void
+    {
+        Assert::same(ParseResult::ok(['a' => 1])->valueOr(null), ['a' => 1]);
+        Assert::same(ParseResult::ok(0)->valueOr(5), 0);
+        Assert::null(ParseResult::ok(null)->valueOr('default'));
+        Assert::same(ParseResult::failed([new ParseError([], 'x')])->valueOr('default'), 'default');
+    }
 }

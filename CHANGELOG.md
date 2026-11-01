@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.0 — 2026-11-01
+
+- `ParseResult::valueOr($default)`: typed access without an exception
+  (`TValue|TDefault`). Psalm cannot narrow `->value` by `->ok`, so
+  `$r->ok ? $r->value[...] : null` stayed nullable; `valueOr(null)` plus a
+  null check keeps the plugin's exact shape (ecosystem-sandbox pilot).
+- README: the "event is one schema" recipe needs `schema()` declared as
+  `IntoSchema` for the typed `toWire()`; an interface's `SchemaInterface`
+  return type may be narrowed in the implementation.
+
 ## 0.6.0 — 2026-11-01
 
 Findings of the consumer pilot (ecosystem-sandbox, cska-one) before 1.0:
