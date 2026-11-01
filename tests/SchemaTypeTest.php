@@ -31,7 +31,9 @@ final class SchemaTypeTest
         Assert::false($result->ok);
         Assert::same(\count($result->errors), 1);
         Assert::same($result->errors[0]->toPath(), '$');
-        Assert::same($result->errors[0]->message, 'Invalid JSON (Syntax error)');
+        // PHP 8.6 adds the location ("Syntax error near location 1:8"):
+        // a position, never the input.
+        Assert::string($result->errors[0]->message)->startsWith('Invalid JSON (Syntax error');
     }
 
     public function parseJsonKeepsADecodedNull(): void
