@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Format;
 use Rasuvaeff\Schema\Schema;
@@ -101,6 +102,37 @@ final class FormatTest
         for ($i = 0; $i < 25; $i++) {
             Assert::true($schema->parse($schema->arbitrary()->generate($random)->value)->ok);
         }
+    }
+
+    #[DataProvider('chainOrderProvider')]
+    public function formatSurvivesLengthBoundsInEveryOrder(StringSchema $schema): void
+    {
+        Assert::same($schema->format, Format::Email);
+        Assert::false($schema->parse('not-an-email')->ok);
+        Assert::true($schema->parse('user@example.com')->ok);
+        Assert::same($schema->toJsonSchema()->schema['format'], 'email');
+    }
+
+    public static function chainOrderProvider(): iterable
+    {
+        yield 'format, min' => [Schema::string()->format(Format::Email)->min(3)];
+        yield 'format, max' => [Schema::string()->format(Format::Email)->max(254)];
+        yield 'format, min, max' => [Schema::string()->format(Format::Email)->min(3)->max(254)];
+        yield 'min, format' => [Schema::string()->min(3)->format(Format::Email)];
+        yield 'min, max, format' => [Schema::string()->min(3)->max(254)->format(Format::Email)];
+        yield 'max, format, min' => [Schema::string()->max(254)->format(Format::Email)->min(3)];
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function regexAfterFormatIsRejectedInsteadOfDroppingTheFormat(): void
+    {
+        Schema::string()->format(Format::Email)->regex('^[a-z]+$');
+    }
+
+    #[ExpectException(\InvalidArgumentException::class)]
+    public function regexUncheckedAfterFormatIsRejectedInsteadOfDroppingTheFormat(): void
+    {
+        Schema::string()->format(Format::Email)->regexUnchecked('^[a-z]+$', Gen::stringMatching('^[a-z]+$'));
     }
 
     #[ExpectException(\InvalidArgumentException::class)]

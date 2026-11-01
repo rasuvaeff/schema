@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.1 — 2026-11-01
+
+- Fixed: `StringSchema::min()`, `max()`, `regex()` and `regexUnchecked()` no longer discard a format set earlier in the chain (`Schema::string()->format(Format::Email)->min(3)` accepted any string and exported no `format`). `regex()` / `regexUnchecked()` on a schema that already has a format now throw the "mutually exclusive" `InvalidArgumentException`, as `format()` after `regex()` always did. Fixes #38.
+
 ## 1.0.0 — 2026-11-01
 
 - Stable release. The public API and behaviour are those of 0.7.0, checked
