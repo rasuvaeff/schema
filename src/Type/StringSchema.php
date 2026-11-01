@@ -67,7 +67,13 @@ final class StringSchema extends SchemaType
             throw new \InvalidArgumentException('Minimum length must not exceed the maximum');
         }
 
-        return new self(minLength: $length, maxLength: $this->maxLength, pattern: $this->pattern, patternGenerator: $this->patternGenerator);
+        return new self(
+            minLength: $length,
+            maxLength: $this->maxLength,
+            pattern: $this->pattern,
+            patternGenerator: $this->patternGenerator,
+            format: $this->format,
+        );
     }
 
     public function max(int $length): self
@@ -80,7 +86,13 @@ final class StringSchema extends SchemaType
             throw new \InvalidArgumentException('Maximum length must not be below the minimum');
         }
 
-        return new self(minLength: $this->minLength, maxLength: $length, pattern: $this->pattern, patternGenerator: $this->patternGenerator);
+        return new self(
+            minLength: $this->minLength,
+            maxLength: $length,
+            pattern: $this->pattern,
+            patternGenerator: $this->patternGenerator,
+            format: $this->format,
+        );
     }
 
     /**
@@ -106,7 +118,7 @@ final class StringSchema extends SchemaType
             );
         }
 
-        return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern);
+        return new self(minLength: $this->minLength, maxLength: $this->maxLength, pattern: $pattern, format: $this->format);
     }
 
     /**
@@ -135,6 +147,7 @@ final class StringSchema extends SchemaType
             maxLength: $this->maxLength,
             pattern: $pattern,
             patternGenerator: $generator,
+            format: $this->format,
         );
     }
 
