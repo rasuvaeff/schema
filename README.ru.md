@@ -72,7 +72,8 @@ $result = $user->parse($payload);
 
 if (!$result->ok) {
     foreach ($result->errors as $error) {
-        // '$.tags[2]' / RFC 6901 '/tags/2' — источник истины это сегменты
+        // '$.tags[2]' / RFC 6901 '/tags/2' — источник истины это сегменты;
+        // ключ, который не простое имя, берётся в кавычки: $['user@example.com'], $['a.b']
         $error->toPath();
         $error->toJsonPointer();
         $error->message;  // только виды и размеры, никогда само значение
@@ -174,6 +175,13 @@ discriminated, lazy и json остаются `mixed` / `list<mixed>` /
 (свойства собраны в цикле), откатывается к `array<string, mixed>`. Нужен
 `vimeo/psalm` ^6.
 
+`$result->value` тоже несёт форму (`array{...}|null`, null при неуспехе);
+`orThrow()` отдаёт её без null. Ограничения в выведенный тип не входят:
+`int()->min(0)` — это `int`, а не `int<0, max>`, `string()->min(1)` —
+`string`, а не `non-empty-string`; где это важно, сужайте вручную. Схема,
+которую возвращает вспомогательный метод, теряет выведенную форму на границе
+метода — объявите её там: `/** @return ObjectSchema<array{id: int, name?: string}> */`.
+
 ### Рецепт: событие — это одна схема
 
 Типу сообщения нужны парсер (`fromPayload`), сериализатор (`toPayload`) и
@@ -211,7 +219,14 @@ RoundTrip::assertWireRoundTrip(OrderPaid::schema(), $event);
 ```
 
 Рукописный `toPayload()` не может разойтись с парсером: это одно и то же
-дерево. `toWire()` поверх `into()` читает публичные свойства DTO
+дерево. `toWire()` у схемы `into()` (и у объекта) типизирован как
+`array<string, mixed>`, так что `toPayload(): array` обходится без каста.
+Выигрыш тем больше, чем больше полей в payload; для одного поля литеральный
+массив не хуже.
+
+`parseJson()` сообщает о невалидном JSON ошибкой разбора, поэтому
+`JsonException` нигде не прикладывается; где вызывающему нужна именно эта
+причина, оставьте `json_decode(..., JSON_THROW_ON_ERROR)`. `toWire()` поверх `into()` читает публичные свойства DTO
 (`get_object_vars()`), поэтому DTO принимает их promoted-аргументами
 конструктора. См. [examples/event-roundtrip.php](examples/event-roundtrip.php).
 
@@ -395,8 +410,9 @@ $result->getErrorMessagesIndexedByPath();
   присутствуют, отсутствующие optional-ключи отсутствуют, порядок ключей
   объекта как в объявлении), три режима `Unknown`, первый успех у `union`,
   выбор ветки по тегу у `discriminated`;
-- **пути** ошибок (`ParseError::$segments`, `toPath()`, `toJsonPointer()`) и
-  правило, что в сообщениях нет входных значений;
+- **пути** ошибок (`ParseError::$segments`, `toPath()` с ключами в кавычках,
+  если это не простые имена, `toJsonPointer()`) и правило, что в сообщениях нет
+  входных значений (ключи — только в путях);
 - закон паритета (всё, что генерирует `arbitrary()`, разбирается) и
   wire-закон (выход `toWire()` проходит валидацию по `toJsonSchema()`);
 - `toWire()` как обратную к `parse()`: enum → backed-значение, `dateTime` →
@@ -418,7 +434,10 @@ $result->getErrorMessagesIndexedByPath();
 ## Безопасность
 
 Сообщения об ошибках никогда не встраивают входные значения — только виды
-и размеры (`get_debug_type`, длины, количества). Payload может нести секреты,
+и размеры (`get_debug_type`, длины, количества). **Ключи** входа — это
+структура, а не значения: они есть в пути ошибки (`$.extra`,
+`$['user@example.com']`), но не в сообщении (`Unknown property`), так что если
+секретными могут быть сами ключи, маскировать нужно путь. Payload может нести секреты,
 а ошибки уезжают в логи и Sentry. Колбэк `transform`, бросивший исключение,
 отдаёт только имя класса.
 

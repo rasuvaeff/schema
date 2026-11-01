@@ -47,10 +47,7 @@ final class NullableSchema extends SchemaType
         $result = $this->parse($input);
 
         if ($result->ok) {
-            /** @var T|null $value */
-            $value = $result->value;
-
-            return $value;
+            return $result->value;
         }
 
         throw new SchemaException($result->errors);

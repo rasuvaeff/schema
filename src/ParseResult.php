@@ -20,6 +20,7 @@ namespace Rasuvaeff\Schema;
 final readonly class ParseResult
 {
     /**
+     * @param TValue|null $value the parsed value when `ok`, `null` otherwise
      * @param list<ParseError> $errors
      */
     private function __construct(

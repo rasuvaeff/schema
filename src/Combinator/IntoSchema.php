@@ -116,10 +116,24 @@ final class IntoSchema extends SchemaType
         return $this->object->toJsonSchema($lenient);
     }
 
+    /**
+     * The DTO's public properties in their wire form — the payload of a
+     * message. Anything that is not an object goes through the object
+     * schema's own projection.
+     *
+     * @template TIn
+     *
+     * @param TIn $value
+     *
+     * @return (TIn is object ? array<string, mixed> : TIn)
+     */
     #[\Override]
     public function toWire(mixed $value): mixed
     {
-        return Wire::value($this->object, \is_object($value) ? \get_object_vars($value) : $value);
+        /** @var (TIn is object ? array<string, mixed> : TIn) $wire Wire maps an object schema's array to an array */
+        $wire = Wire::value($this->object, \is_object($value) ? \get_object_vars($value) : $value);
+
+        return $wire;
     }
 
     /**

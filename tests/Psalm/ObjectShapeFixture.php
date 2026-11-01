@@ -153,4 +153,28 @@ final class ObjectShapeFixture
         /** @psalm-check-type-exact $hidden = array{p?: string} */
         $this->checked[] = $hidden;
     }
+
+    public function theParsedValueIsTypedOnTheResultToo(mixed $input): void
+    {
+        $result = Schema::object(['id' => Schema::int()])->parse($input);
+        $value = $result->value;
+        /** @psalm-check-type-exact $value = array{id: int}|null */
+        $this->checked[] = $value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function anEventIsItsSchemasWireFormWithoutACast(UserDto $user): array
+    {
+        $wire = Schema::object(['name' => Schema::string(), 'age' => Schema::int()])->into(UserDto::class)->toWire($user);
+        /** @psalm-check-type-exact $wire = array<string, mixed> */
+        $this->checked[] = $wire;
+
+        $object = Schema::object(['id' => Schema::int()])->toWire(['id' => 1]);
+        /** @psalm-check-type-exact $object = array<string, mixed> */
+        $this->checked[] = $object;
+
+        return $wire;
+    }
 }

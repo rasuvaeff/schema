@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.0 — 2026-11-01
+
+Findings of the consumer pilot (ecosystem-sandbox, cska-one) before 1.0:
+
+- **Behavior change:** `ParseError::toPath()` quotes keys that are not plain
+  names (`[A-Za-z_][A-Za-z0-9_]*`): `$['a.b']`, `$['user@example.com']`,
+  `$['0']` — `$.a.b` was ambiguous between the key `a.b` and the keys `a`,
+  `b`. Segments and `toJsonPointer()` are unchanged.
+- **Behavior change:** an unknown key is reported as `Unknown property` at
+  its path; the message no longer repeats the key. Input keys appear in
+  paths only, never in messages (stability contract wording updated).
+- `ParseResult::$value` is typed `TValue|null`, so the shape the Psalm
+  plugin infers is visible on the result, not only through `orThrow()`.
+- `toWire()` of `into()` and object schemas is typed `array<string, mixed>`
+  for an object / array input: the "event is one schema" recipe needs no
+  `@var`.
+- README: the plugin does not infer constraints (`int<0, max>`,
+  `non-empty-string`); annotate a schema returned from a helper method;
+  the recipe pays off for multi-field payloads; `parseJson()` attaches no
+  `JsonException`.
+
 ## 0.5.0 — 2026-11-01
 
 - **BC:** one unknown-key mode per object, the new `Unknown` enum
