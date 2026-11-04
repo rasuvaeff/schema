@@ -416,6 +416,13 @@ final class ObjectSchema extends SchemaType
         $groups = [];
 
         foreach ($this->anyOf as $group) {
+            // A defaulted member satisfies its group without being present
+            // ({@see satisfied()}), so `required` would reject input the
+            // parser accepts; the group constrains nothing and is left out.
+            if ($this->hasDefaultedMember($group)) {
+                continue;
+            }
+
             $groups[] = ['anyOf' => \array_map(static fn(string $name): array => ['required' => [$name]], $group)];
         }
 
@@ -433,6 +440,20 @@ final class ObjectSchema extends SchemaType
         }
 
         return JsonSchemaExport::of($schema, $nonRepresentable);
+    }
+
+    /**
+     * @param non-empty-list<string> $group
+     */
+    private function hasDefaultedMember(array $group): bool
+    {
+        foreach ($group as $name) {
+            if ($this->properties[$name]->hasDefault) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

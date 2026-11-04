@@ -137,7 +137,9 @@ The unknown-key mode survives every step. `pick()`/`omit()` remove dropped
 names from `requireAnyOf` groups and drop an emptied group; an undeclared
 name is an `InvalidArgumentException`. A defaulted property satisfies a
 group (it is always present). The generator satisfies the groups
-constructively; the export adds `anyOf: [{required: [email]}, {required: [phone]}]`.
+constructively; the export adds `anyOf: [{required: [email]}, {required: [phone]}]`,
+except for a group with a defaulted member, which constrains nothing and is
+left out.
 
 ### Typed results: the Psalm plugin
 
