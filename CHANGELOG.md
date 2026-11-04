@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Fixed: the Psalm plugin crashed Psalm 7 (`Call to private Psalm\Type\Atomic\TKeyedArray::__construct()`); it builds shapes through `TKeyedArray::make()` now and works on Psalm 6 and 7 (#41). `vimeo/psalm` in `require-dev` is `^6.16 || ^7.0`, so the build runs on Psalm 7 and a separate CI job keeps Psalm and the plugin fixtures green on the newest 6.x.
+- Changed: the Psalm plugin targets Psalm 7. On Psalm 7 it crashed (`Call to private Psalm\Type\Atomic\TKeyedArray::__construct()`); it builds shapes through `TKeyedArray::make()` now (#41). `vimeo/psalm` in `require-dev` is `^7.0`. Psalm 6 is no longer tested; before 6.19 it has no `TKeyedArray::make()`, so the plugin fails there.
 - Mutation testing now counts uncovered code (`composer mutation` runs Infection with `--with-uncovered`), and tests were added for the code it exposed: `parseOrThrow()` on every schema type, `NonRepresentable`, `toWire()` branches, JSON Schema export fragments, generator bounds, and `#[Covers]` targets on the tests that already exercised them. No `src/` changes.
 
 ## 1.0.1 — 2026-11-01

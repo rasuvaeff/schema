@@ -173,7 +173,7 @@ $payment = Schema::object([
 discriminated, lazy и json остаются `mixed` / `list<mixed>` /
 `array<string, mixed>`. Объявление, которое плагин не может прочитать
 (свойства собраны в цикле), откатывается к `array<string, mixed>`. Нужен
-`vimeo/psalm` ^6 или ^7.
+`vimeo/psalm` ^7.
 
 `$result->value` тоже несёт форму (`array{...}|null`, null при неуспехе), но
 psalm не сужает его по `$result->ok`. Типизированный доступ — `orThrow()`

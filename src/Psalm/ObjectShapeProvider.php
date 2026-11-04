@@ -321,7 +321,7 @@ final class ObjectShapeProvider implements MethodReturnTypeProviderInterface
 
         $declarations = [];
 
-        foreach (\array_filter($expr->items) as $item) {
+        foreach ($expr->items as $item) {
             if ($item->key instanceof String_) {
                 $declarations[$item->key->value] = $item->value;
             }
