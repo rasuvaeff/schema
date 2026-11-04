@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.1.0 — 2026-11-04
 
 - Fixed: the JSON Schema export of `requireAnyOf()` demanded a key that a defaulted member satisfies without being present, so the export rejected input `parse()` accepts. A group with a defaulted member is left out of the export now (#43).
 - Changed: the Psalm plugin targets Psalm 7. On Psalm 7 it crashed (`Call to private Psalm\Type\Atomic\TKeyedArray::__construct()`); it builds shapes through `TKeyedArray::make()` now (#41). `vimeo/psalm` in `require-dev` is `^7.0`. Psalm 6 is no longer tested; before 6.19 it has no `TKeyedArray::make()`, so the plugin fails there.
