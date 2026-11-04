@@ -9,7 +9,11 @@ use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\Schema\Format;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\SchemaInterface;
+use Rasuvaeff\Schema\Type\DiscriminatedSchema;
+use Rasuvaeff\Schema\Type\MapSchema;
+use Rasuvaeff\Schema\Type\NullableSchema;
 use Rasuvaeff\Schema\Type\ObjectSchema;
+use Rasuvaeff\Schema\Type\UnionSchema;
 use Rasuvaeff\Schema\Unknown;
 
 /**
@@ -78,10 +82,7 @@ final class SchemaTrees
                     ->maxCount(Gen::draw(Gen::intBetween(0, 3))),
                 'object' => self::object($depth, $withUnions),
                 'nullable' => Schema::nullable(Gen::draw(self::tree($depth - 1, withUnions: $withUnions))),
-                'union' => Schema::union([
-                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
-                    Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
-                ]),
+                'union' => self::union($depth, $withUnions),
                 'tuple' => Schema::tuple([
                     Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
                     Gen::draw(self::tree($depth - 1, withUnions: $withUnions)),
@@ -153,6 +154,34 @@ final class SchemaTrees
         // At least a millisecond apart: bounds inside one millisecond admit
         // no wire value and are rejected at construction.
         return Schema::dateTime()->min($min)->max(Gen::draw(Gen::datetime(min: $min->modify('+1000 usec'))));
+    }
+
+    /**
+     * Two members that both accept a JSON object overlap: the first one
+     * claims every value of the second (a passthrough object takes a map's
+     * entries as unknown keys and keeps them raw), which the package calls
+     * an authoring error (#43). The second member is then a leaf instead.
+     */
+    private static function union(int $depth, bool $withUnions): SchemaInterface
+    {
+        $first = Gen::draw(self::tree($depth - 1, withUnions: $withUnions));
+        $second = Gen::draw(self::tree($depth - 1, withUnions: $withUnions));
+
+        if (self::acceptsObjects($first) && self::acceptsObjects($second)) {
+            $second = Gen::draw(self::tree(0));
+        }
+
+        return Schema::union([$first, $second]);
+    }
+
+    private static function acceptsObjects(SchemaInterface $schema): bool
+    {
+        return match (true) {
+            $schema instanceof ObjectSchema, $schema instanceof MapSchema, $schema instanceof DiscriminatedSchema => true,
+            $schema instanceof NullableSchema => self::acceptsObjects($schema->inner),
+            $schema instanceof UnionSchema => self::acceptsObjects($schema->members[0]) || self::acceptsObjects($schema->members[1]),
+            default => false,
+        };
     }
 
     private static function discriminated(int $depth, bool $withUnions = true): SchemaInterface

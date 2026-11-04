@@ -64,7 +64,8 @@ Reject → error `Unknown property` at `$.x` (the key is in the path, never in t
 false`; Strip → dropped, export `true` + `strip` NonRepresentable;
 Passthrough → kept raw in the result, export `true`. requireAnyOf error:
 `At least one of "email", "phone" is required` at `$`; export `anyOf:
-[{required:[email]},{required:[phone]}]` (several groups → `allOf`).
+[{required:[email]},{required:[phone]}]` (several groups → `allOf`; a group
+with a defaulted member is left out).
 
 ### parse / parseOrThrow
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Schema\Tests;
 
+use Opis\JsonSchema\Validator;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Internal\Wire;
 use Rasuvaeff\Schema\JsonSchemaExport;
@@ -352,6 +353,33 @@ final class ObjectSchemaTest
         ]);
         Assert::false(\array_key_exists('anyOf', $two));
         Assert::false(\array_key_exists('anyOf', Schema::object([])->toJsonSchema()->schema));
+    }
+
+    /**
+     * A defaulted member satisfies its group without being present, so the
+     * export must not demand the key: `{}` parses and validates (#43).
+     */
+    public function aGroupWithADefaultedMemberIsNotExported(): void
+    {
+        $schema = Schema::object(['a' => Schema::int()->optional(), 'b' => Schema::string()->default('x')])
+            ->requireAnyOf('a', 'b');
+        $export = $schema->toJsonSchema()->schema;
+
+        Assert::true($schema->parse([])->ok);
+        Assert::false(\array_key_exists('anyOf', $export));
+        Assert::false(\array_key_exists('allOf', $export));
+        Assert::true((new Validator())->validate(new \stdClass(), \json_decode(\json_encode($export, \JSON_THROW_ON_ERROR), flags: \JSON_THROW_ON_ERROR))->isValid());
+    }
+
+    public function onlyTheGroupsWithoutADefaultedMemberAreExported(): void
+    {
+        $export = Schema::object(['a' => Schema::int()->optional(), 'b' => Schema::string()->default('x'), 'c' => Schema::int()->optional()])
+            ->requireAnyOf('a', 'b')
+            ->requireAnyOf('c')
+            ->toJsonSchema()->schema;
+
+        Assert::same($export['anyOf'], [['required' => ['c']]]);
+        Assert::false(\array_key_exists('allOf', $export));
     }
 
     public function extendAddsAndReplacesProperties(): void
