@@ -172,7 +172,7 @@ $payment = Schema::object([
 `into(Dto::class)` already yields the DTO type without the plugin. Union,
 tuple, discriminated, lazy and json values stay `mixed` / `list<mixed>` /
 `array<string, mixed>`. A declaration the plugin cannot read (properties built
-in a loop) falls back to `array<string, mixed>`. Requires `vimeo/psalm` ^6.
+in a loop) falls back to `array<string, mixed>`. Requires `vimeo/psalm` ^6 or ^7.
 
 `$result->value` carries the shape too (`array{...}|null`, null when not
 `ok`), but Psalm cannot narrow it by `$result->ok`. Typed access is
