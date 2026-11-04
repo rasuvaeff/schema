@@ -125,7 +125,7 @@ final class ObjectShapeProvider implements MethodReturnTypeProviderInterface
             return $fallback === null ? Type::getEmptyArray() : new Union([new TArray($fallback)]);
         }
 
-        return new Union([new TKeyedArray($properties, null, $fallback)]);
+        return new Union([TKeyedArray::make($properties, null, $fallback)]);
     }
 
     /**
@@ -322,7 +322,7 @@ final class ObjectShapeProvider implements MethodReturnTypeProviderInterface
         $declarations = [];
 
         foreach ($expr->items as $item) {
-            if ($item !== null && $item->key instanceof String_) {
+            if ($item->key instanceof String_) {
                 $declarations[$item->key->value] = $item->value;
             }
         }

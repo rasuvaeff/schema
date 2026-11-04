@@ -51,12 +51,12 @@ final class ObjectShapeFixture
             'kind' => Schema::literal('creator'),
             'state' => Schema::literals(['pending', 'paid']),
             'refined' => Schema::int()->refine(static fn(int $v): bool => $v > 0, 'positive'),
-            'asString' => Schema::int()->transform(static fn(int $v): string => (string) $v, jsonSchema: ['type' => 'string']),
+            'asString' => Schema::int()->transform(static fn(int $v): string => '#' . $v, jsonSchema: ['type' => 'string']),
             'meta' => Schema::json(),
             'point' => Schema::tuple([Schema::float(), Schema::float()]),
         ])->parse($input)->orThrow();
 
-        /** @psalm-check-type-exact $value = array{tags: list<string>, labels: array<string, int>, parent: int|null, nullableChain: null|string, role: Role, kind: 'creator', state: 'paid'|'pending', refined: int, asString: numeric-string, meta: mixed, point: list<mixed>} */
+        /** @psalm-check-type-exact $value = array{tags: list<string>, labels: array<string, int>, parent: int|null, nullableChain: null|string, role: Role, kind: 'creator', state: 'paid'|'pending', refined: int, asString: non-empty-lowercase-string, meta: mixed, point: list<mixed>} */
 
         $this->checked[] = $value;
     }

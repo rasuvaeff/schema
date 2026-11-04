@@ -230,7 +230,7 @@ schema (honest superset) + entry; transform → declared codec.
 ### Psalm plugin
 
 `<pluginClass class="Rasuvaeff\Schema\Psalm\Plugin"/>` in psalm.xml (needs
-`vimeo/psalm` ^6). `Schema::object([...])` → `ObjectSchema<array{...}>`:
+`vimeo/psalm` ^7). `Schema::object([...])` → `ObjectSchema<array{...}>`:
 bare/defaulted key `k: T`, `->optional()` `k?: T`, a variable property
 `k?: T`, Passthrough → open shape `...<string, mixed>`. Carried by extend/
 pick/omit/partial/unknown/requireAnyOf. union/tuple/discriminated/lazy/json

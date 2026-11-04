@@ -393,7 +393,10 @@ final class StringSchemaTest
         $arbitrary = Schema::string()->arbitrary();
         $random = new Random(41);
 
-        for ($i = 0; $i < 400; $i++) {
+        // Each length is drawn uniformly from 101: 400 draws missed 100 once
+        // the core's random stream shifted (1.3 draws the string edge bias
+        // first). 3000 make a miss about e^-30, on any seed.
+        for ($i = 0; $i < 3000; $i++) {
             $lengths[] = \mb_strlen($arbitrary->generate($random)->value);
         }
 
