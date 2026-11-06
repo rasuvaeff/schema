@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\Internal\RecursionDepth;
 use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
@@ -139,11 +140,13 @@ final class MapSchema extends SchemaType
             return Gen::constant([]);
         }
 
+        $min = $this->minCount ?? 0;
+
         return Gen::dictOf(
             key: Gen::stringOf(1, 12),
             value: $this->value->arbitrary(),
-            minSize: $this->minCount ?? 0,
-            maxSize: $this->maxCount ?? 20,
+            minSize: $min,
+            maxSize: RecursionDepth::containerMax($min, $this->maxCount ?? 20),
         );
     }
 

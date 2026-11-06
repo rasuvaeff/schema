@@ -10,6 +10,7 @@ use Rasuvaeff\PropertyTesting\GenerationExhaustedException;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\PropertyTesting\Shrinkable;
 use Rasuvaeff\Schema\Internal\DeferredArbitrary;
+use Rasuvaeff\Schema\Internal\RecursionDepth;
 use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseResult;
 use Rasuvaeff\Schema\SchemaInterface;
@@ -39,12 +40,7 @@ use Rasuvaeff\Schema\SchemaType;
  */
 final class LazySchema extends SchemaType
 {
-    /** How many nested generations may pass through this lazy schema. */
-    private const int MAX_GENERATION_DEPTH = 32;
-
     private ?SchemaInterface $resolved = null;
-
-    private int $generationDepth = 0;
 
     /**
      * @param Closure(): SchemaInterface $factory
@@ -72,7 +68,7 @@ final class LazySchema extends SchemaType
         // meets this lazy schema again while the tree is still under
         // construction. The inner generator is built per generate() call,
         // nested only as deep as the random draw actually goes, and bounded
-        // by MAX_GENERATION_DEPTH.
+        // by the recursion budget.
         $lazy = $this;
 
         return new DeferredArbitrary(
@@ -85,24 +81,26 @@ final class LazySchema extends SchemaType
      */
     public function generateBounded(Random $random): Shrinkable
     {
-        if ($this->generationDepth >= self::MAX_GENERATION_DEPTH) {
+        if (RecursionDepth::remaining() === 0) {
             throw new GenerationExhaustedException(
                 'Schema::lazy()',
-                self::MAX_GENERATION_DEPTH,
+                RecursionDepth::BUDGET,
                 'recursive generation exceeded the depth budget of '
-                    . self::MAX_GENERATION_DEPTH
-                    . ' levels — either the draw never picked a non-recursive branch '
-                    . '(retry the run) or the schema has no finite value at all '
-                    . '(every path through the recursion is mandatory)',
+                    . RecursionDepth::BUDGET
+                    . ' levels — the recursion has no finite value: every path '
+                    . 'through it is mandatory (no optional key, no empty '
+                    . 'container, no non-recursive branch reaches a leaf). '
+                    . 'Containers inside the recursion already shrink with the '
+                    . 'remaining budget, so an ordinary tree does not get here',
             );
         }
 
-        $this->generationDepth++;
+        RecursionDepth::enter();
 
         try {
             return $this->resolve()->arbitrary()->generate($random);
         } finally {
-            $this->generationDepth--;
+            RecursionDepth::exit();
         }
     }
 
