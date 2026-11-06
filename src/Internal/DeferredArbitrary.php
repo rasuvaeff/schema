@@ -20,13 +20,13 @@ use Rasuvaeff\PropertyTesting\Shrinkable;
  *
  * @internal
  */
-final class DeferredArbitrary implements ArbitraryInterface
+final readonly class DeferredArbitrary implements ArbitraryInterface
 {
     /**
      * @param Closure(Random): Shrinkable<mixed> $generate
      */
     public function __construct(
-        private readonly Closure $generate,
+        private Closure $generate,
     ) {}
 
     #[\Override]
