@@ -6,6 +6,7 @@ namespace Rasuvaeff\Schema\Type;
 
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
+use Rasuvaeff\Schema\Internal\RecursionDepth;
 use Rasuvaeff\Schema\JsonSchemaExport;
 use Rasuvaeff\Schema\ParseError;
 use Rasuvaeff\Schema\ParseResult;
@@ -133,7 +134,10 @@ final class ArraySchema extends SchemaType
             return Gen::constant([]);
         }
 
-        return Gen::arrayOf($this->element->arbitrary(), $this->minCount ?? 0, $this->maxCount ?? 20);
+        $min = $this->minCount ?? 0;
+        $max = RecursionDepth::containerMax($min, $this->maxCount ?? 20);
+
+        return Gen::arrayOf($this->element->arbitrary(), $min, $max);
     }
 
     #[\Override]

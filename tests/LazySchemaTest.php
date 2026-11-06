@@ -7,6 +7,7 @@ namespace Rasuvaeff\Schema\Tests;
 use Rasuvaeff\PropertyTesting\GenerationExhaustedException;
 use Rasuvaeff\PropertyTesting\Random;
 use Rasuvaeff\Schema\Internal\DeferredArbitrary;
+use Rasuvaeff\Schema\Internal\RecursionDepth;
 use Rasuvaeff\Schema\Schema;
 use Rasuvaeff\Schema\Type\LazySchema;
 use Testo\Assert;
@@ -17,6 +18,7 @@ use Testo\Test;
 #[Test]
 #[Covers(LazySchema::class)]
 #[Covers(DeferredArbitrary::class)]
+#[Covers(RecursionDepth::class)]
 #[Covers(Schema::class)]
 final class LazySchemaTest
 {
@@ -88,6 +90,56 @@ final class LazySchemaTest
 
         for ($i = 0; $i < 20; $i++) {
             $value = $arbitrary->generate(new Random($i))->value;
+
+            Assert::true($node->parse($value)->ok);
+        }
+    }
+
+    /**
+     * The exact repro of the supercritical-branching report: an uncapped
+     * array of nodes (up to 20 children each) has an expected recursive
+     * child count above 1, so before containers shrank with the remaining
+     * budget most seeds hit the depth limit. Every seed must generate now.
+     */
+    public function arbitraryOfAUncappedRecursiveTreeGeneratesOnEverySeed(): void
+    {
+        $node = null;
+
+        $node = Schema::object([
+            'name' => Schema::string()->min(1)->max(5),
+            'children' => Schema::arrayOf(Schema::lazy(
+                static function () use (&$node): \Rasuvaeff\Schema\SchemaInterface {
+                    return $node;
+                },
+            ))->optional(),
+        ]);
+
+        $arbitrary = $node->arbitrary();
+
+        for ($seed = 1; $seed <= 50; $seed++) {
+            $value = $arbitrary->generate(new Random($seed))->value;
+
+            Assert::true($node->parse($value)->ok);
+        }
+    }
+
+    public function mapOfRecursiveValuesStaysSubcritical(): void
+    {
+        $node = null;
+
+        $node = Schema::lazy(
+            static function () use (&$node): \Rasuvaeff\Schema\Type\ObjectSchema {
+                return Schema::object([
+                    'name' => Schema::string()->min(1)->max(5),
+                    'children' => Schema::mapOf($node)->optional(),
+                ]);
+            },
+        );
+
+        $arbitrary = $node->arbitrary();
+
+        for ($seed = 1; $seed <= 50; $seed++) {
+            $value = $arbitrary->generate(new Random($seed))->value;
 
             Assert::true($node->parse($value)->ok);
         }
