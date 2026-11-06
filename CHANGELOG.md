@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 1.1.2 — 2026-11-06
 
 - Fixed: recursive `Schema::lazy()` generation exhausted the depth budget on many seeds for ordinary trees — a node's expected recursive child count was above 1 (supercritical branching), so most draws never reached a leaf within 32 levels (#49). Arrays and maps built inside the recursion now shrink their size range with the remaining budget (`maxCount` towards `remaining / 8`, never below the declared `minCount`), keeping the branching subcritical; `GenerationExhaustedException` remains only for schemas whose every path through the recursion is mandatory.
 
