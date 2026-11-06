@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Fixed: `arbitrary()` of a recursive `Schema::lazy()` schema exhausted memory — the lazy schema was resolved while the generator tree was still being built, which re-entered the same schema forever. The recursion is unrolled at `generate()` time now, bounded by a depth budget of 32 levels; a schema whose every path through the recursion is mandatory (no finite value exists) fails with `GenerationExhaustedException` instead (#47).
+
 ## 1.1.0 — 2026-11-04
 
 - Fixed: the JSON Schema export of `requireAnyOf()` demanded a key that a defaulted member satisfies without being present, so the export rejected input `parse()` accepts. A group with a defaulted member is left out of the export now (#43).

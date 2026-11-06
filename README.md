@@ -260,6 +260,19 @@ public function queuePayloadIsHandled(SchemaInterface $payload): void
 }
 ```
 
+Recursive `Schema::lazy()` schemas generate too: the recursion is unrolled
+at `generate()` time (not while the generator is built), so nesting goes only
+as deep as the random draw actually chooses, bounded by a depth budget of 32
+levels. A schema whose every path through the recursion is mandatory (no
+optional key, no empty array, no non-recursive union branch) has no finite
+value at all — its generator fails with `GenerationExhaustedException`
+instead of exhausting memory.
+
+Prefer tight generators over `->refine()`: a refinement is a `Gen::filter`,
+and a loose source with a rare predicate (any string that must be a safe URL)
+burns the filter's attempt budget. Build the constraint into the schema
+(`->regex()`, `->format()`, `Schema::literals()`) when you can.
+
 ### Export
 
 ```php
