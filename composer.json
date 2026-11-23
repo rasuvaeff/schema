@@ -42,7 +42,7 @@
         "testo/bridge-infection": "^0.1.6",
         "testo/testo": "^0.10.25",
         "vimeo/psalm": "^7.0",
-        "yiisoft/validator": "^2.6"
+        "yiisoft/validator": "^2.6.2"
     },
     "suggest": {
         "vimeo/psalm": "Infers exact array shapes of Schema::object() via Rasuvaeff\\Schema\\Psalm\\Plugin",
